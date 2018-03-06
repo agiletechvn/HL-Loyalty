@@ -10,7 +10,9 @@ import (
   "encoding/json"
   "errors"
   "fmt"
+  "github.com/hyperledger/fabric/core/chaincode/lib/cid"
   "github.com/hyperledger/fabric/core/chaincode/shim"
+  "github.com/hyperledger/fabric/protos/peer"
   "regexp"
   "strings"
 )
@@ -85,7 +87,7 @@ type CustomerID_Holder struct {
 }
 
 //==============================================================================================================================
-//  CustomerID Holder - Defines the structure that holds all the customerIDs for Customer that have been created.
+//  POS ID Holder - Defines the structure that holds all the POS IDs for Customer that have been created.
 //        Used as an index when querying all vehicles.
 //==============================================================================================================================
 
@@ -94,7 +96,7 @@ type PoSID_Holder struct {
 }
 
 //==============================================================================================================================
-//  CustomerID Holder - Defines the structure that holds all the customerIDs for Customer that have been created.
+//  Item ID Holder - Defines the structure that holds all the Item IDs for Customer that have been created.
 //        Used as an index when querying all vehicles.
 //==============================================================================================================================
 
@@ -105,30 +107,35 @@ type ItemID_Holder struct {
 //==============================================================================================================================
 //  Init Function - Called when the user deploys the chaincode
 //==============================================================================================================================
-func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
+func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) peer.Response {
+  // by default it is init function so no need to pass
+  args := stub.GetStringArgs()
+  // var customerIDs CustomerID_Holder
 
-  var customerIDs CustomerID_Holder
+  // bytes, err := json.Marshal(customerIDs)
 
-  bytes, err := json.Marshal(customerIDs)
+  // if err != nil {
+  //   return nil, errors.New("Error creating pos record")
+  // }
 
-  if err != nil {
-    return nil, errors.New("Error creating pos record")
-  }
+  // err = stub.PutState("customerIDs", bytes)
 
-  err = stub.PutState("customerIDs", bytes)
-
+  // add initial pos
   for i := 0; i < len(args); i = i + 2 {
-    //t.add_pos(stub, args[i], args[i+1])
+    _, err := t.create_pos(stub, args[i], args[i+1])
+    if err != nil {
+      return shim.Error(err.Error())
+    }
   }
 
-  return nil, nil
+  return shim.Success(nil)
 }
 
 //==============================================================================================================================
 //   General Functions
 //==============================================================================================================================
 //   get_ecert - Takes the name passed and calls out to the REST API for HyperLedger to retrieve the ecert
-//         for that user. Returns the ecert as retrived including html encoding.
+//         for that user. Returns the ecert as retrieved including html encoding.
 //==============================================================================================================================
 func (t *SimpleChaincode) get_ecert(stub shim.ChaincodeStubInterface, name string) ([]byte, error) {
 
@@ -142,17 +149,33 @@ func (t *SimpleChaincode) get_ecert(stub shim.ChaincodeStubInterface, name strin
 }
 
 //==============================================================================================================================
-//   get_caller - Retrieves the username of the user who invoked the chaincode.
+//   read_cert_attribute - Retrieves the attribute name of the certificate.
+//          Returns the attribute as a string.
+//==============================================================================================================================
+
+func (t *SimpleChaincode) read_cert_attribute(stub shim.ChaincodeStubInterface, name string) (string, error) {
+  val, ok, err := cid.GetAttributeValue(stub, "attr1")
+  if err != nil {
+    return "", err
+  }
+  if !ok {
+    return "", errors.New("The attribute is not found")
+  }
+  return val, nil
+}
+
+//==============================================================================================================================
+//   get_username - Retrieves the username of the user who invoked the chaincode.
 //          Returns the username as a string.
 //==============================================================================================================================
 
 func (t *SimpleChaincode) get_username(stub shim.ChaincodeStubInterface) (string, error) {
 
-  username, err := stub.ReadCertAttribute("username")
+  username, err := t.read_cert_attribute(stub, "username")
   if err != nil {
     return "", errors.New("Couldn't get attribute 'username'. Error: " + err.Error())
   }
-  return string(username), nil
+  return username, nil
 }
 
 //==============================================================================================================================
@@ -161,11 +184,11 @@ func (t *SimpleChaincode) get_username(stub shim.ChaincodeStubInterface) (string
 //==============================================================================================================================
 
 func (t *SimpleChaincode) check_affiliation(stub shim.ChaincodeStubInterface) (string, error) {
-  affiliation, err := stub.ReadCertAttribute("role")
+  affiliation, err := t.read_cert_attribute(stub, "role")
   if err != nil {
     return "", errors.New("Couldn't get attribute 'role'. Error: " + err.Error())
   }
-  return string(affiliation), nil
+  return affiliation, nil
 
 }
 
@@ -342,16 +365,60 @@ func (t *SimpleChaincode) save_changes_item(stub shim.ChaincodeStubInterface, v 
 //==============================================================================================================================
 //   Router Functions
 //==============================================================================================================================
+// Invoke is called per transaction on the chaincode. Each transaction is
+// either a 'get' or a 'set' on the asset created by Init function. The Set
+// method may create a new asset by specifying a new key-value pair.
+//==============================================================================================================================
+func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) peer.Response {
+  // Extract the function and args from the transaction proposal
+  fn, args := stub.GetFunctionAndParameters()
+
+  result, err := t.invoke(stub, fn, args)
+
+  if err != nil {
+    return shim.Error(err.Error())
+  }
+
+  // Return the result as success payload
+  return shim.Success([]byte(result))
+}
+
+//==============================================================================================================================
+//   Router Functions
+//==============================================================================================================================
 //  Invoke - Called on chaincode invoke. Takes a function name passed and calls that function. Converts some
 //      initial arguments passed to other things for use in the called function e.g. name -> ecert
 //==============================================================================================================================
-func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
+func (t *SimpleChaincode) invoke(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
 
-  if function == "create_customer" {
-    return t.create_customer(stub, args[0])
-  } else if function == "ping" {
+  // go only runs the selected case, not all the cases that follow, switch case have the same indent
+  switch function {
+
+  case "get_customer_details":
+    if len(args) != 1 {
+      fmt.Printf("Incorrect number of arguments passed")
+      return nil, errors.New("QUERY: Incorrect number of arguments passed")
+    }
+    v, err := t.retrieve_customer(stub, args[0])
+    if err != nil {
+      fmt.Printf("QUERY: Error retrieving v5c: %s", err)
+      return nil, errors.New("QUERY: Error retrieving v5c " + err.Error())
+    }
+    return t.get_customer_details(stub, v)
+
+  case "check_unique_customer":
+    return t.check_unique_customer(stub, args[0])
+
+  case "get_customers":
+    return t.get_customers(stub)
+
+  case "ping":
     return t.ping(stub)
-  } else { // If the function is not a create then there must be a car so we need to retrieve the customer.
+
+  case "create_customer":
+    return t.create_customer(stub, args[0])
+
+  default:
     argPos := 0
     v, err := t.retrieve_customer(stub, args[argPos])
 
@@ -381,38 +448,10 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function stri
     } else if function == "update_name" {
       return t.update_name(stub, v, args[0])
     }
-    return nil, errors.New("Function of the name " + function + " doesn't exist.")
 
   }
-}
 
-//=================================================================================================================================
-//  Query - Called on chaincode query. Takes a function name passed and calls that function. Passes the
-//      initial arguments passed are passed on to the called function.
-//=================================================================================================================================
-func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
-
-  if function == "get_customer_details" {
-    if len(args) != 1 {
-      fmt.Printf("Incorrect number of arguments passed")
-      return nil, errors.New("QUERY: Incorrect number of arguments passed")
-    }
-    v, err := t.retrieve_customer(stub, args[0])
-    if err != nil {
-      fmt.Printf("QUERY: Error retrieving v5c: %s", err)
-      return nil, errors.New("QUERY: Error retrieving v5c " + err.Error())
-    }
-    return t.get_customer_details(stub, v)
-  } else if function == "check_unique_customer" {
-    return t.check_unique_customer(stub, args[0])
-  } else if function == "get_customers" {
-    return t.get_customers(stub)
-  } else if function == "ping" {
-    return t.ping(stub)
-  }
-
-  return nil, errors.New("Received unknown function invocation " + function)
-
+  return nil, errors.New("Function of the name " + function + " doesn't exist.")
 }
 
 //=================================================================================================================================
@@ -421,7 +460,7 @@ func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function strin
 //   Pings the peer to keep the connection alive
 //=================================================================================================================================
 func (t *SimpleChaincode) ping(stub shim.ChaincodeStubInterface) ([]byte, error) {
-  return []byte("Hello, world!"), nil
+  return []byte("pong"), nil
 }
 
 //=================================================================================================================================
@@ -430,18 +469,17 @@ func (t *SimpleChaincode) ping(stub shim.ChaincodeStubInterface) ([]byte, error)
 //   Create Customer - Creates the initial JSON for the vehcile and then saves it to the ledger.
 //=================================================================================================================================
 func (t *SimpleChaincode) create_customer(stub shim.ChaincodeStubInterface, customerID string) ([]byte, error) {
-  var v Customer
+  v := Customer{
+    CustomerID: customerID,
+    Name:       customerID,
+    Address:    "UNDEFINED",
+    Cashback:   0,
+    Email:      "UNDEFINED",
+    Phone:      "UNDEFINED",
+    Status:     true,
+  }
 
-  customerId := "\"CustomerID\":\"" + customerID + "\", " // Variables to define the JSON
-  name := "\"Name\":\"" + customerID + "\", "
-  address := "\"Address\":\"UNDEFINED\", "
-  cashback := "\"Cashback\":0, "
-  email := "\"Email\":\"UNDEFINED\", "
-  phone := "\"Phone\":\"UNDEFINED\", "
-  status := "\"Status\":true"
-
-  customer_json := "{" + customerId + name + address + cashback + email + phone + status + "}" // Concatenates the variables to create the total JSON object
-  matched, err := regexp.Match("^[A-z][A-z][0-9]{7}", []byte(customerID))                      // matched = true if the customerId passed fits format of two letters followed by seven digits
+  matched, err := regexp.Match("^[A-z][A-z][0-9]{7}", []byte(customerID)) // matched = true if the customerId passed fits format of two letters followed by seven digits
   if err != nil {
     fmt.Printf("CREATE_CUSTOMER: Invalid customerID: %s", err)
     return nil, errors.New("Invalid customerID")
@@ -452,10 +490,6 @@ func (t *SimpleChaincode) create_customer(stub shim.ChaincodeStubInterface, cust
     return nil, errors.New("Invalid customerID provided " + customerID)
   }
 
-  err = json.Unmarshal([]byte(customer_json), &v) // Convert the JSON defined above into a customer object for go
-  if err != nil {
-    return nil, errors.New("Invalid JSON object")
-  }
   record, err := stub.GetState(v.CustomerID) // If not an error then a record exists so cant create a new car with this customerId as it must be unique
   if record != nil {
     return nil, errors.New("Customer already exists")
@@ -509,7 +543,9 @@ func (t *SimpleChaincode) update_name(stub shim.ChaincodeStubInterface, v Custom
 //=================================================================================================================================
 //   update_address
 //=================================================================================================================================
-func (t *SimpleChaincode) update_address(stub shim.ChaincodeStubInterface, v Customer, caller string, caller_affiliation string, new_value string) ([]byte, error) {
+func (t *SimpleChaincode) update_address(stub shim.ChaincodeStubInterface, v Customer, new_value string) ([]byte, error) {
+
+  // caller, caller_affiliation, err :=  t.get_caller_data(stub)
 
   if v.Status == true {
     v.Address = new_value
@@ -528,7 +564,9 @@ func (t *SimpleChaincode) update_address(stub shim.ChaincodeStubInterface, v Cus
 //=================================================================================================================================
 //   update_cashback
 //=================================================================================================================================
-func (t *SimpleChaincode) update_cashback(stub shim.ChaincodeStubInterface, v Customer, caller string, caller_affiliation string, new_value int) ([]byte, error) {
+func (t *SimpleChaincode) update_cashback(stub shim.ChaincodeStubInterface, v Customer, new_value int) ([]byte, error) {
+
+  // caller, caller_affiliation, err :=  t.get_caller_data(stub)
 
   if v.Status == true {
     v.Cashback = new_value
@@ -547,7 +585,9 @@ func (t *SimpleChaincode) update_cashback(stub shim.ChaincodeStubInterface, v Cu
 //=================================================================================================================================
 //   update_email
 //=================================================================================================================================
-func (t *SimpleChaincode) update_email(stub shim.ChaincodeStubInterface, v Customer, caller string, caller_affiliation string, new_value string) ([]byte, error) {
+func (t *SimpleChaincode) update_email(stub shim.ChaincodeStubInterface, v Customer, new_value string) ([]byte, error) {
+
+  // caller, caller_affiliation, err :=  t.get_caller_data(stub)
 
   if v.Status == true {
     v.Email = new_value
@@ -566,30 +606,28 @@ func (t *SimpleChaincode) update_email(stub shim.ChaincodeStubInterface, v Custo
 //=================================================================================================================================
 //   Create PoS - Creates the initial JSON for the vehcile and then saves it to the ledger.
 //=================================================================================================================================
-func (t *SimpleChaincode) create_pos(stub shim.ChaincodeStubInterface, caller string, caller_affiliation string, posID string) ([]byte, error) {
-  var v PoS
+func (t *SimpleChaincode) create_pos(stub shim.ChaincodeStubInterface, posID string, posName string) ([]byte, error) {
 
-  posId := "\"PoSID\":\"" + posID + "\", " // Variables to define the JSON
-  posName := "\"PoSName\":0, "
-  status := "\"Status\":\"true\", "
-  percentage := "\"LoyaltyPercentage\":\"5%\", "
+  // caller, caller_affiliation, err :=  t.get_caller_data(stub)
 
-  pos_json := "{" + posId + posName + status + percentage + "}"      // Concatenates the variables to create the total JSON object
-  matched, err := regexp.Match("^[A-z][A-z][0-9]{7}", []byte(posId)) // matched = true if the customerId passed fits format of two letters followed by seven digits
+  v := PoS{
+    PoSID:             posID,
+    PoSName:           posName,
+    Status:            true,
+    LoyaltyPercentage: 5,
+  }
+
+  matched, err := regexp.Match("^[A-z]{2}[0-9]{7}", []byte(posID)) // matched = true if the customerId passed fits format of two letters followed by seven digits
   if err != nil {
     fmt.Printf("CREATE_POS: Invalid posID: %s", err)
     return nil, errors.New("Invalid posID")
   }
 
-  if posId == "" || matched == false {
+  if posID == "" || matched == false {
     fmt.Printf("CREATE_POS: Invalid posID provided")
     return nil, errors.New("Invalid posID provided")
   }
 
-  err = json.Unmarshal([]byte(pos_json), &v) // Convert the JSON defined above into a PoS object for go
-  if err != nil {
-    return nil, errors.New("Invalid JSON object")
-  }
   record, err := stub.GetState(v.PoSID) // If not an error then a record exists so cant create a new car with this CustomerID as it must be unique
   if record != nil {
     return nil, errors.New("POS already exists")
@@ -624,7 +662,9 @@ func (t *SimpleChaincode) create_pos(stub shim.ChaincodeStubInterface, caller st
 //=================================================================================================================================
 //   update_posname
 //=================================================================================================================================
-func (t *SimpleChaincode) update_posname(stub shim.ChaincodeStubInterface, v PoS, caller string, caller_affiliation string, new_value string) ([]byte, error) {
+func (t *SimpleChaincode) update_posname(stub shim.ChaincodeStubInterface, v PoS, new_value string) ([]byte, error) {
+
+  // caller, caller_affiliation, err :=  t.get_caller_data(stub)
 
   if v.Status == true {
     v.PoSName = new_value
@@ -643,7 +683,9 @@ func (t *SimpleChaincode) update_posname(stub shim.ChaincodeStubInterface, v PoS
 //=================================================================================================================================
 //   update_percentage
 //=================================================================================================================================
-func (t *SimpleChaincode) update_percentage(stub shim.ChaincodeStubInterface, v PoS, caller string, caller_affiliation string, new_value int) ([]byte, error) {
+func (t *SimpleChaincode) update_percentage(stub shim.ChaincodeStubInterface, v PoS, new_value int) ([]byte, error) {
+
+  // caller, caller_affiliation, err :=  t.get_caller_data(stub)
 
   if v.Status == true {
     v.LoyaltyPercentage = new_value
@@ -662,30 +704,28 @@ func (t *SimpleChaincode) update_percentage(stub shim.ChaincodeStubInterface, v 
 //=================================================================================================================================
 //   Create PoS - Creates the initial JSON for the vehcile and then saves it to the ledger.
 //=================================================================================================================================
-func (t *SimpleChaincode) create_item(stub shim.ChaincodeStubInterface, caller string, caller_affiliation string, itemID string) ([]byte, error) {
-  var v Item
+func (t *SimpleChaincode) create_item(stub shim.ChaincodeStubInterface, itemID string) ([]byte, error) {
 
-  itemId := "\"ItemID\":\"" + itemID + "\", " // Variables to define the JSON
-  posID := "\"PoSID\":0, "
-  itemName := "\"Active\":\"UNDEFINED\", "
-  price := "\"Price\":\"500\", "
+  // caller, caller_affiliation, err :=  t.get_caller_data(stub)
 
-  item_json := "{" + itemId + posID + itemName + price + "}"          // Concatenates the variables to create the total JSON object
-  matched, err := regexp.Match("^[A-z][A-z][0-9]{7}", []byte(itemId)) // matched = true if the customerId passed fits format of two letters followed by seven digits
+  v := Item{
+    ItemID:   itemID,
+    PoSID:    "0",
+    ItemName: "UNDEFINED",
+    Price:    500,
+  }
+
+  matched, err := regexp.Match("^[A-z][A-z][0-9]{7}", []byte(itemID)) // matched = true if the customerId passed fits format of two letters followed by seven digits
   if err != nil {
     fmt.Printf("CREATE_ITEM: Invalid itemID: %s", err)
     return nil, errors.New("Invalid itemID")
   }
 
-  if itemId == "" || matched == false {
+  if itemID == "" || matched == false {
     fmt.Printf("CREATE_ITEM: Invalid itemID provided")
     return nil, errors.New("Invalid itemID provided")
   }
 
-  err = json.Unmarshal([]byte(item_json), &v) // Convert the JSON defined above into a PoS object for go
-  if err != nil {
-    return nil, errors.New("Invalid JSON object")
-  }
   record, err := stub.GetState(v.ItemID) // If not an error then a record exists so cant create a new car with this CustomerID as it must be unique
   if record != nil {
     return nil, errors.New("Item already exists")
@@ -705,7 +745,7 @@ func (t *SimpleChaincode) create_item(stub shim.ChaincodeStubInterface, caller s
   if err != nil {
     return nil, errors.New("Corrupt Item record")
   }
-  itemIDs.ItemIDs = append(itemIDs.ItemIDs, itemId)
+  itemIDs.ItemIDs = append(itemIDs.ItemIDs, itemID)
   bytes, err = json.Marshal(itemIDs)
   if err != nil {
     fmt.Print("Error creating Item record")
@@ -720,7 +760,9 @@ func (t *SimpleChaincode) create_item(stub shim.ChaincodeStubInterface, caller s
 //=================================================================================================================================
 //   update_item_name
 //=================================================================================================================================
-func (t *SimpleChaincode) update_item_name(stub shim.ChaincodeStubInterface, v Item, caller string, caller_affiliation string, new_value string) ([]byte, error) {
+func (t *SimpleChaincode) update_item_name(stub shim.ChaincodeStubInterface, v Item, new_value string) ([]byte, error) {
+
+  // caller, caller_affiliation, err :=  t.get_caller_data(stub)
 
   v.ItemName = new_value
 
@@ -735,7 +777,9 @@ func (t *SimpleChaincode) update_item_name(stub shim.ChaincodeStubInterface, v I
 //=================================================================================================================================
 //   update_posid
 //=================================================================================================================================
-func (t *SimpleChaincode) update_posid(stub shim.ChaincodeStubInterface, v Item, caller string, caller_affiliation string, new_value string) ([]byte, error) {
+func (t *SimpleChaincode) update_posid(stub shim.ChaincodeStubInterface, v Item, new_value string) ([]byte, error) {
+
+  // caller, caller_affiliation, err :=  t.get_caller_data(stub)
 
   v.PoSID = new_value
 
@@ -750,7 +794,9 @@ func (t *SimpleChaincode) update_posid(stub shim.ChaincodeStubInterface, v Item,
 //=================================================================================================================================
 //   update_price
 //=================================================================================================================================
-func (t *SimpleChaincode) update_price(stub shim.ChaincodeStubInterface, v Item, caller string, caller_affiliation string, new_value int) ([]byte, error) {
+func (t *SimpleChaincode) update_price(stub shim.ChaincodeStubInterface, v Item, new_value int) ([]byte, error) {
+
+  // caller string, caller_affiliation string,
 
   v.Price = new_value
 
