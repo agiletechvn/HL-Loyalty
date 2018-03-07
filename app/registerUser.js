@@ -12,11 +12,11 @@ This code is based on code written by the Hyperledger Fabric community.
 
 var Fabric_Client = require('fabric-client');
 var Fabric_CA_Client = require('fabric-ca-client');
-
+const x509 = require("x509");
 var path = require('path');
 var util = require('util');
 var os = require('os');
-
+const fs = require("fs");
 //
 var fabric_client = new Fabric_Client();
 var fabric_ca_client = null;
@@ -24,7 +24,7 @@ var admin_user = null;
 var member_user = null;
 var store_path = path.join(os.homedir(), '.hfc-key-store');
 console.log(' Store path:'+store_path);
-const username = "user1"
+const username = "user3"
 // create the key value store as defined in the fabric-client/config/default.json 'key-value-store' setting
 Fabric_Client.newDefaultKeyValueStore({ path: store_path
 }).then((state_store) => {
@@ -64,7 +64,11 @@ Fabric_Client.newDefaultKeyValueStore({ path: store_path
     // next we need to enroll the user with CA server
     console.log('Successfully registered '+username+' - secret:'+ secret);
 
-    return fabric_ca_client.enroll({enrollmentID: username, enrollmentSecret: secret});
+    return fabric_ca_client.enroll({
+      enrollmentID: username, 
+      enrollmentSecret: secret,
+      attr_reqs: [{ name: "role", optional: true }, {name: "username"}]
+    });
 }).then((enrollment) => {
   console.log('Successfully enrolled member user "'+username+'" ');
   return fabric_client.createUser(
@@ -84,5 +88,10 @@ Fabric_Client.newDefaultKeyValueStore({ path: store_path
 	if(err.toString().indexOf('Authorization') > -1) {
 		console.error('Authorization failures may be caused by having admin credentials from a previous CA instance.\n' +
 		'Try again after deleting the contents of the store directory '+store_path);
-	}
+	} else {
+    const obj = JSON.parse(fs.readFileSync(store_path + "/" + username, "utf8"));
+    var cert = x509.parseCert(obj.enrollment.identity.certificate);
+    console.log(obj.enrollment.identity.certificate);    
+    console.log(cert);
+  }
 });

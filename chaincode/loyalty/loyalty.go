@@ -638,15 +638,21 @@ func (t *SimpleChaincode) create_pos(stub shim.ChaincodeStubInterface, posID str
     fmt.Printf("CREATE_POS: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
-  bytes, err := stub.GetState("posID")
+  bytes, err := stub.GetState("posIDs")
   if err != nil {
     return nil, errors.New("Unable to get PoSID")
   }
   var posIDs PoSID_Holder
-  err = json.Unmarshal(bytes, &posIDs)
-  if err != nil {
-    return nil, errors.New("Corrupt PoS record")
+  if len(bytes) > 0 {
+    err = json.Unmarshal(bytes, &posIDs)
+    if err != nil {
+      return nil, errors.New("Corrupt PoS record")
+    }
+  } else {
+    // by default init an empty posIDs
+    posIDs = PoSID_Holder{}
   }
+  // then append the item
   posIDs.PoSIDs = append(posIDs.PoSIDs, posID)
   bytes, err = json.Marshal(posIDs)
   if err != nil {

@@ -1450,6 +1450,10 @@ mute-stream@~0.0.4:
   version "0.0.7"
   resolved "https://registry.yarnpkg.com/mute-stream/-/mute-stream-0.0.7.tgz#3075ce93bc21b8fab43e1bc4da7e8115ed1e7bab"
 
+nan@2.2.0:
+  version "2.2.0"
+  resolved "https://registry.yarnpkg.com/nan/-/nan-2.2.0.tgz#779c07135629503cf6a7b7e6aab33049b3c3853c"
+
 nan@^2.0.0, nan@^2.3.0, nan@^2.8.0:
   version "2.9.2"
   resolved "https://registry.yarnpkg.com/nan/-/nan-2.9.2.tgz#f564d75f5f8f36a6d9456cca7a6c4fe488ab7866"
@@ -2425,6 +2429,12 @@ wrap-ansi@^2.0.0:
 wrappy@1:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/wrappy/-/wrappy-1.0.2.tgz#b5243d8f3ec1aa35f1364605bc0d1036e30ab69f"
+
+x509@^0.3.3:
+  version "0.3.3"
+  resolved "https://registry.yarnpkg.com/x509/-/x509-0.3.3.tgz#6744af599906327fe444d5103b5b2cafdbe1a776"
+  dependencies:
+    nan "2.2.0"
 
 xtend@^4.0.0:
   version "4.0.1"
