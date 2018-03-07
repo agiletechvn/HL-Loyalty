@@ -32,20 +32,20 @@ func checkInit(t *testing.T, stub *MockStub, args []string) {
   }
 }
 
-func checkInvoke(t *testing.T, stub *MockStub, name string, value string) {
-  res := stub.MockInvoke("1", []string{name})
+func checkInvoke(t *testing.T, stub *MockStub, args []string, value string) {
+  res := stub.MockInvoke("1", args)
   if res.Status != shim.OK {
-    fmt.Println("Query", name, "failed", string(res.Message))
+    fmt.Println("Query", args, "failed", string(res.Message))
     t.FailNow()
   }
 
   if res.Payload == nil {
-    fmt.Println("Query", name, "failed to get value")
+    fmt.Println("Query", args, "failed to get value")
     t.FailNow()
   }
 
   if string(res.Payload) != value {
-    fmt.Println("Query value", name, "was not", value, "as expected")
+    fmt.Println("Query value", args, "was not", value, "as expected")
     t.FailNow()
   }
 }
@@ -79,16 +79,16 @@ func Test_Cert_Attrs(t *testing.T) {
 }
 
 func Test_Init(t *testing.T) {
-
   scc := new(SimpleChaincode)
   stub := NewMockStub("loyalty", scc)
-  checkInit(t, stub, []string{"HT1234567", "Ha Noi", "HT1234568", "Hai Phong"})
+  checkInit(t, stub, []string{})
+  checkInvoke(t, stub, []string{"ping"}, "pong")
 }
 
 func Test_Invoke(t *testing.T) {
   scc := new(SimpleChaincode)
   stub := NewMockStub("loyalty", scc)
-  checkInit(t, stub, []string{})
-
-  checkInvoke(t, stub, "ping", "pong")
+  checkInit(t, stub, []string{"HT1234567", "Ha Noi", "HT1234568", "Hai Phong"})
+  // check get_pos_details function
+  checkInvoke(t, stub, []string{"get_pos_details", "HT1234567"}, `{"posId":"HT1234567","posName":"Ha Noi","status":true,"percentage":5}`)
 }

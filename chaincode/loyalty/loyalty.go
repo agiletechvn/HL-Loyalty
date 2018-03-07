@@ -17,7 +17,10 @@ import (
   "strings"
 )
 
+// using logger so that logs only appear if the ChaincodeLogger LoggingLevel is set to
+// LogInfo or LogDebug
 var logger = shim.NewLogger("LoyaltyChaincode")
+var idPattern = regexp.MustCompile("^[A-z]{2}[0-9]{7}")
 
 //==============================================================================================================================
 //   Participant types - Each participant type is mapped to an integer which we use to compare to the value stored in a
@@ -227,14 +230,14 @@ func (t *SimpleChaincode) retrieve_customer(stub shim.ChaincodeStubInterface, cu
   bytes, err := stub.GetState(customerID)
 
   if err != nil {
-    fmt.Printf("RETRIEVE_CUSTOMER: Failed to invoke Customer_code: %s", err)
+    logger.Infof("RETRIEVE_CUSTOMER: Failed to invoke Customer_code: %s", err)
     return v, errors.New("RETRIEVE_CUSTOMER: Error retrieving Customer with customerID = " + customerID)
   }
 
   err = json.Unmarshal(bytes, &v)
 
   if err != nil {
-    fmt.Printf("RETRIEVE_CUSTOMER: Corrupt Customer record "+string(bytes)+": %s", err)
+    logger.Infof("RETRIEVE_CUSTOMER: Corrupt Customer record "+string(bytes)+": %s", err)
     return v, errors.New("RETRIEVE_CUSTOMER: Corrupt Customer record" + string(bytes))
   }
 
@@ -253,18 +256,30 @@ func (t *SimpleChaincode) retrieve_item(stub shim.ChaincodeStubInterface, itemID
   bytes, err := stub.GetState(itemID)
 
   if err != nil {
-    fmt.Printf("RETRIEVE_ITEM: Failed to invoke ItemID: %s", err)
+    logger.Infof("RETRIEVE_ITEM: Failed to invoke ItemID: %s", err)
     return v, errors.New("RETRIEVE_ITEM: Error retrieving Item with ItemID = " + itemID)
   }
 
   err = json.Unmarshal(bytes, &v)
 
   if err != nil {
-    fmt.Printf("RETRIEVE_ITEM: Corrupt Item record "+string(bytes)+": %s", err)
+    logger.Infof("RETRIEVE_ITEM: Corrupt Item record "+string(bytes)+": %s", err)
     return v, errors.New("RETRIEVE_ITEM: Corrupt Item record" + string(bytes))
   }
 
   return v, nil
+}
+
+//==============================================================================================================================
+//   get_pos_details - Gets the state of pos
+//==============================================================================================================================
+func (t *SimpleChaincode) get_pos_details(stub shim.ChaincodeStubInterface, v PoS) ([]byte, error) {
+
+  bytes, err := json.Marshal(v)
+  if err != nil {
+    return nil, errors.New("GET_POS_DETAILS: Invalid POS object")
+  }
+  return bytes, nil
 }
 
 //==============================================================================================================================
@@ -279,14 +294,14 @@ func (t *SimpleChaincode) retrieve_pos(stub shim.ChaincodeStubInterface, posID s
   bytes, err := stub.GetState(posID)
 
   if err != nil {
-    fmt.Printf("RETRIEVE_PoS: Failed to invoke posID: %s", err)
+    logger.Infof("RETRIEVE_PoS: Failed to invoke posID: %s", err)
     return v, errors.New("RETRIEVE_ITEM: Error retrieving PoS with posID = " + posID)
   }
 
   err = json.Unmarshal(bytes, &v)
 
   if err != nil {
-    fmt.Printf("RETRIEVE_PoS: Corrupt PoS record "+string(bytes)+": %s", err)
+    logger.Infof("RETRIEVE_PoS: Corrupt PoS record "+string(bytes)+": %s", err)
     return v, errors.New("RETRIEVE_ITEM: Corrupt PoS record" + string(bytes))
   }
 
@@ -302,14 +317,14 @@ func (t *SimpleChaincode) save_changes(stub shim.ChaincodeStubInterface, v Custo
   bytes, err := json.Marshal(v)
 
   if err != nil {
-    fmt.Printf("SAVE_CHANGES: Error converting customer record: %s", err)
+    logger.Infof("SAVE_CHANGES: Error converting customer record: %s", err)
     return false, errors.New("Error converting customer record")
   }
 
   err = stub.PutState(v.CustomerID, bytes)
 
   if err != nil {
-    fmt.Printf("SAVE_CHANGES: Error storing customer record: %s", err)
+    logger.Infof("SAVE_CHANGES: Error storing customer record: %s", err)
     return false, errors.New("Error storing customer record")
   }
 
@@ -325,14 +340,15 @@ func (t *SimpleChaincode) save_changes_pos(stub shim.ChaincodeStubInterface, v P
   bytes, err := json.Marshal(v)
 
   if err != nil {
-    fmt.Printf("SAVE_CHANGES: Error converting pos record: %s", err)
+    logger.Infof("SAVE_CHANGES: Error converting pos record: %s", err)
     return false, errors.New("Error converting pos record")
   }
 
-  err = stub.PutState(v.PoSName, bytes)
+  // update using posID as key
+  err = stub.PutState(v.PoSID, bytes)
 
   if err != nil {
-    fmt.Printf("SAVE_CHANGES: Error storing pos record: %s", err)
+    logger.Infof("SAVE_CHANGES: Error storing pos record: %s", err)
     return false, errors.New("Error storing pos record")
   }
 
@@ -348,14 +364,14 @@ func (t *SimpleChaincode) save_changes_item(stub shim.ChaincodeStubInterface, v 
   bytes, err := json.Marshal(v)
 
   if err != nil {
-    fmt.Printf("SAVE_CHANGES: Error converting pos record: %s", err)
+    logger.Infof("SAVE_CHANGES: Error converting pos record: %s", err)
     return false, errors.New("Error converting pos record")
   }
 
   err = stub.PutState(v.ItemName, bytes)
 
   if err != nil {
-    fmt.Printf("SAVE_CHANGES: Error storing pos record: %s", err)
+    logger.Infof("SAVE_CHANGES: Error storing pos record: %s", err)
     return false, errors.New("Error storing pos record")
   }
 
@@ -396,15 +412,23 @@ func (t *SimpleChaincode) invoke(stub shim.ChaincodeStubInterface, function stri
 
   case "get_customer_details":
     if len(args) != 1 {
-      fmt.Printf("Incorrect number of arguments passed")
+      logger.Infof("Incorrect number of arguments passed")
       return nil, errors.New("QUERY: Incorrect number of arguments passed")
     }
     v, err := t.retrieve_customer(stub, args[0])
     if err != nil {
-      fmt.Printf("QUERY: Error retrieving v5c: %s", err)
-      return nil, errors.New("QUERY: Error retrieving v5c " + err.Error())
+      logger.Infof("QUERY: Error retrieving customer: %s", err)
+      return nil, errors.New("QUERY: Error retrieving customer " + err.Error())
     }
     return t.get_customer_details(stub, v)
+
+  case "get_pos_details":
+    v, err := t.retrieve_pos(stub, args[0])
+    if err != nil {
+      logger.Infof("QUERY: Error retrieving pos: %s", err)
+      return nil, errors.New("QUERY: Error retrieving pos " + err.Error())
+    }
+    return t.get_pos_details(stub, v)
 
   case "check_unique_customer":
     return t.check_unique_customer(stub, args[0])
@@ -423,7 +447,7 @@ func (t *SimpleChaincode) invoke(stub shim.ChaincodeStubInterface, function stri
     v, err := t.retrieve_customer(stub, args[argPos])
 
     if err != nil {
-      fmt.Printf("INVOKE: Error retrieving Customer: %s", err)
+      logger.Infof("INVOKE: Error retrieving Customer: %s", err)
       return nil, errors.New("Error retrieving customer")
     }
     if strings.Contains(function, "update") == false && function != "delete_customer" {
@@ -431,7 +455,7 @@ func (t *SimpleChaincode) invoke(stub shim.ChaincodeStubInterface, function stri
         argPos := 2
         i, err := t.retrieve_item(stub, args[argPos])
         if err != nil {
-          fmt.Printf("INVOKE: Error retrieving Item: %s", err)
+          logger.Infof("INVOKE: Error retrieving Item: %s", err)
           return nil, errors.New("Error retrieving Item")
         }
         return t.buy_item_by_money(stub, v, i)
@@ -439,7 +463,7 @@ func (t *SimpleChaincode) invoke(stub shim.ChaincodeStubInterface, function stri
         argPos := 2
         i, err := t.retrieve_item(stub, args[argPos])
         if err != nil {
-          fmt.Printf("INVOKE: Error retrieving Item: %s", err)
+          logger.Infof("INVOKE: Error retrieving Item: %s", err)
           return nil, errors.New("Error retrieving Item")
         }
         return t.buy_item_by_wallet(stub, v, i)
@@ -479,25 +503,23 @@ func (t *SimpleChaincode) create_customer(stub shim.ChaincodeStubInterface, cust
     Status:     true,
   }
 
-  matched, err := regexp.Match("^[A-z][A-z][0-9]{7}", []byte(customerID)) // matched = true if the customerId passed fits format of two letters followed by seven digits
-  if err != nil {
-    fmt.Printf("CREATE_CUSTOMER: Invalid customerID: %s", err)
-    return nil, errors.New("Invalid customerID")
-  }
+  // matched = true if the customerId passed fits format of two letters followed by seven digits
+  matched := idPattern.Match([]byte(customerID))
 
   if customerID == "" || matched == false {
-    fmt.Printf("CREATE_CUSTOMER: Invalid customerID provided")
+    logger.Infof("CREATE_CUSTOMER: Invalid customerID provided")
     return nil, errors.New("Invalid customerID provided " + customerID)
   }
 
-  record, err := stub.GetState(v.CustomerID) // If not an error then a record exists so cant create a new car with this customerId as it must be unique
+  // If not an error then a record exists so cant create a new car with this customerId as it must be unique
+  record, err := stub.GetState(v.CustomerID)
   if record != nil {
     return nil, errors.New("Customer already exists")
   }
 
   _, err = t.save_changes(stub, v)
   if err != nil {
-    fmt.Printf("CREATE_CUSTOMER: Error saving changes: %s", err)
+    logger.Infof("CREATE_CUSTOMER: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   bytes, err := stub.GetState("customerIDs")
@@ -512,7 +534,7 @@ func (t *SimpleChaincode) create_customer(stub shim.ChaincodeStubInterface, cust
   customerIDs.Customers = append(customerIDs.Customers, customerID)
   bytes, err = json.Marshal(customerIDs)
   if err != nil {
-    fmt.Print("Error creating Customer record")
+    logger.Info("Error creating Customer record")
   }
   err = stub.PutState("customerIDs", bytes)
   if err != nil {
@@ -534,7 +556,7 @@ func (t *SimpleChaincode) update_name(stub shim.ChaincodeStubInterface, v Custom
 
   _, err := t.save_changes(stub, v)
   if err != nil {
-    fmt.Printf("UPDATE_NAME: Error saving changes: %s", err)
+    logger.Infof("UPDATE_NAME: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   return nil, nil
@@ -555,7 +577,7 @@ func (t *SimpleChaincode) update_address(stub shim.ChaincodeStubInterface, v Cus
 
   _, err := t.save_changes(stub, v)
   if err != nil {
-    fmt.Printf("UPDATE_ADDRESS: Error saving changes: %s", err)
+    logger.Infof("UPDATE_ADDRESS: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   return nil, nil
@@ -576,7 +598,7 @@ func (t *SimpleChaincode) update_cashback(stub shim.ChaincodeStubInterface, v Cu
 
   _, err := t.save_changes(stub, v)
   if err != nil {
-    fmt.Printf("UPDATE_CASHBACK: Error saving changes: %s", err)
+    logger.Infof("UPDATE_CASHBACK: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   return nil, nil
@@ -597,7 +619,7 @@ func (t *SimpleChaincode) update_email(stub shim.ChaincodeStubInterface, v Custo
 
   _, err := t.save_changes(stub, v)
   if err != nil {
-    fmt.Printf("UPDATE_EMAIL: Error saving changes: %s", err)
+    logger.Infof("UPDATE_EMAIL: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   return nil, nil
@@ -617,25 +639,23 @@ func (t *SimpleChaincode) create_pos(stub shim.ChaincodeStubInterface, posID str
     LoyaltyPercentage: 5,
   }
 
-  matched, err := regexp.Match("^[A-z]{2}[0-9]{7}", []byte(posID)) // matched = true if the customerId passed fits format of two letters followed by seven digits
-  if err != nil {
-    fmt.Printf("CREATE_POS: Invalid posID: %s", err)
-    return nil, errors.New("Invalid posID")
-  }
+  // matched = true if the customerId passed fits format of two letters followed by seven digits
+  matched := idPattern.Match([]byte(posID))
 
   if posID == "" || matched == false {
-    fmt.Printf("CREATE_POS: Invalid posID provided")
+    logger.Infof("CREATE_POS: Invalid posID provided")
     return nil, errors.New("Invalid posID provided")
   }
 
-  record, err := stub.GetState(v.PoSID) // If not an error then a record exists so cant create a new car with this CustomerID as it must be unique
+  // If not an error then a record exists so cant create a new car with this CustomerID as it must be unique
+  record, err := stub.GetState(v.PoSID)
   if record != nil {
     return nil, errors.New("POS already exists")
   }
 
   _, err = t.save_changes_pos(stub, v)
   if err != nil {
-    fmt.Printf("CREATE_POS: Error saving changes: %s", err)
+    logger.Infof("CREATE_POS: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   bytes, err := stub.GetState("posIDs")
@@ -656,7 +676,7 @@ func (t *SimpleChaincode) create_pos(stub shim.ChaincodeStubInterface, posID str
   posIDs.PoSIDs = append(posIDs.PoSIDs, posID)
   bytes, err = json.Marshal(posIDs)
   if err != nil {
-    fmt.Print("Error creating PoS record")
+    logger.Info("Error creating PoS record")
   }
   err = stub.PutState("posIDs", bytes)
   if err != nil {
@@ -680,7 +700,7 @@ func (t *SimpleChaincode) update_posname(stub shim.ChaincodeStubInterface, v PoS
 
   _, err := t.save_changes_pos(stub, v)
   if err != nil {
-    fmt.Printf("UPDATE_POSNAME: Error saving changes: %s", err)
+    logger.Infof("UPDATE_POSNAME: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   return nil, nil
@@ -701,7 +721,7 @@ func (t *SimpleChaincode) update_percentage(stub shim.ChaincodeStubInterface, v 
 
   _, err := t.save_changes_pos(stub, v)
   if err != nil {
-    fmt.Printf("UPDATE_PERCENTAGE: Error saving changes: %s", err)
+    logger.Infof("UPDATE_PERCENTAGE: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   return nil, nil
@@ -721,25 +741,23 @@ func (t *SimpleChaincode) create_item(stub shim.ChaincodeStubInterface, itemID s
     Price:    500,
   }
 
-  matched, err := regexp.Match("^[A-z][A-z][0-9]{7}", []byte(itemID)) // matched = true if the customerId passed fits format of two letters followed by seven digits
-  if err != nil {
-    fmt.Printf("CREATE_ITEM: Invalid itemID: %s", err)
-    return nil, errors.New("Invalid itemID")
-  }
+  // matched = true if the customerId passed fits format of two letters followed by seven digits
+  matched := idPattern.Match([]byte(itemID))
 
   if itemID == "" || matched == false {
-    fmt.Printf("CREATE_ITEM: Invalid itemID provided")
+    logger.Infof("CREATE_ITEM: Invalid itemID provided")
     return nil, errors.New("Invalid itemID provided")
   }
 
-  record, err := stub.GetState(v.ItemID) // If not an error then a record exists so cant create a new car with this CustomerID as it must be unique
+  // If not an error then a record exists so cant create a new car with this CustomerID as it must be unique
+  record, err := stub.GetState(v.ItemID)
   if record != nil {
     return nil, errors.New("Item already exists")
   }
 
   _, err = t.save_changes_item(stub, v)
   if err != nil {
-    fmt.Printf("CREATE_POS: Error saving changes: %s", err)
+    logger.Infof("CREATE_POS: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   bytes, err := stub.GetState("itemID")
@@ -754,7 +772,7 @@ func (t *SimpleChaincode) create_item(stub shim.ChaincodeStubInterface, itemID s
   itemIDs.ItemIDs = append(itemIDs.ItemIDs, itemID)
   bytes, err = json.Marshal(itemIDs)
   if err != nil {
-    fmt.Print("Error creating Item record")
+    logger.Info("Error creating Item record")
   }
   err = stub.PutState("itemIDs", bytes)
   if err != nil {
@@ -774,7 +792,7 @@ func (t *SimpleChaincode) update_item_name(stub shim.ChaincodeStubInterface, v I
 
   _, err := t.save_changes_item(stub, v)
   if err != nil {
-    fmt.Printf("UPDATE_ITEM_NAME: Error saving changes: %s", err)
+    logger.Infof("UPDATE_ITEM_NAME: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   return nil, nil
@@ -791,7 +809,7 @@ func (t *SimpleChaincode) update_posid(stub shim.ChaincodeStubInterface, v Item,
 
   _, err := t.save_changes_item(stub, v)
   if err != nil {
-    fmt.Printf("UPDATE_POSID: Error saving changes: %s", err)
+    logger.Infof("UPDATE_POSID: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   return nil, nil
@@ -808,7 +826,7 @@ func (t *SimpleChaincode) update_price(stub shim.ChaincodeStubInterface, v Item,
 
   _, err := t.save_changes_item(stub, v)
   if err != nil {
-    fmt.Printf("UPDATE_PRICE: Error saving changes: %s", err)
+    logger.Infof("UPDATE_PRICE: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   return nil, nil
@@ -894,18 +912,18 @@ func (t *SimpleChaincode) buy_item_by_money(stub shim.ChaincodeStubInterface, v 
   if v.Status == true {
     p, err := t.retrieve_pos(stub, i.PoSID)
     if err != nil {
-      fmt.Printf("INVOKE: Error retrieving PoS: %s", err)
+      logger.Infof("INVOKE: Error retrieving PoS: %s", err)
       return nil, errors.New("Error retrieving PoS")
     }
     v.Cashback = v.Cashback + (p.LoyaltyPercentage*i.Price)/100
   } else { // Otherwise if there is an error
-    fmt.Printf("buy_item_by_money: Customer Not Active")
+    logger.Infof("buy_item_by_money: Customer Not Active")
     return nil, errors.New(fmt.Sprintf(" Customer Not Active."))
   }
 
   _, err := t.save_changes(stub, v) // Write new state
   if err != nil {
-    fmt.Printf("buy_item_by_money: Error saving changes: %s", err)
+    logger.Infof("buy_item_by_money: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   return nil, nil // We are Done
@@ -917,16 +935,16 @@ func (t *SimpleChaincode) buy_item_by_wallet(stub shim.ChaincodeStubInterface, v
     if v.Cashback > i.Price {
       v.Cashback = v.Cashback - i.Price
     } else {
-      fmt.Printf("buy_item_by_wallet: Not enough balance")
+      logger.Infof("buy_item_by_wallet: Not enough balance")
       return nil, errors.New(fmt.Sprintf(" Not enough balance."))
     }
   } else { // Otherwise if there is an error
-    fmt.Printf("buy_item_by_wallet: Customer Not Active")
-    return nil, errors.New(fmt.Sprintf(" Customer Not Active."))
+    logger.Infof("buy_item_by_wallet: Customer Not Active")
+    return nil, errors.New(fmt.Sprintf("Customer Not Active."))
   }
   _, err := t.save_changes(stub, v) // Write new state
   if err != nil {
-    fmt.Printf("buy_item_by_wallet: Error saving changes: %s", err)
+    logger.Infof("buy_item_by_wallet: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   return nil, nil // We are Done
@@ -939,6 +957,6 @@ func main() {
 
   err := shim.Start(new(SimpleChaincode))
   if err != nil {
-    fmt.Printf("Error starting Chaincode: %s", err)
+    logger.Infof("Error starting Chaincode: %s", err)
   }
 }
