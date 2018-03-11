@@ -92,3 +92,17 @@ func Test_Invoke(t *testing.T) {
   // check get_pos_details function
   checkInvoke(t, stub, []string{"get_pos_details", "HT1234567"}, `{"posId":"HT1234567","posName":"Ha Noi","status":true,"percentage":5}`)
 }
+
+func Benchmark_Invoke(b *testing.B) {
+  scc := new(SimpleChaincode)
+  stub := NewMockStub("loyalty", scc)
+  stub.MockInit("1", []string{"HT1234567", "Ha Noi", "HT1234568", "Hai Phong"})
+
+  for i := 0; i < b.N; i++ {
+    stub.MockInvoke("1", []string{"get_pos_details", "HT1234567"})
+  }
+}
+
+// func Test_Customers(t *testing.T) {
+
+// }
