@@ -52,9 +52,14 @@ type Customer struct {
   Name       string `json:"name"`
   Address    string `json:"address"`
   Cashback   int    `json:"cashback"`
-  Email      string `json:"email"`
-  Phone      string `json:"phone"`
-  Status     bool   `json:"status"`
+  // transfer back token to get cashback or stellar
+  // loyalty point is token so that it incentivizes users directly
+  // this is not ICO, so token is unlimited, transfer back token is like burning,
+  // but we might allow transfer between 2 customers
+  Token  int    `json:"token"`
+  Email  string `json:"email"`
+  Phone  string `json:"phone"`
+  Status bool   `json:"status"`
 }
 
 //==============================================================================================================================
@@ -396,7 +401,7 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) peer.Response
   }
 
   // Return the result as success payload
-  return shim.Success([]byte(result))
+  return shim.Success(result)
 }
 
 //==============================================================================================================================
@@ -443,8 +448,7 @@ func (t *SimpleChaincode) invoke(stub shim.ChaincodeStubInterface, function stri
     return t.create_customer(stub, args[0])
 
   default:
-    argPos := 0
-    v, err := t.retrieve_customer(stub, args[argPos])
+    v, err := t.retrieve_customer(stub, args[0])
 
     if err != nil {
       logger.Infof("INVOKE: Error retrieving Customer: %s", err)
@@ -452,16 +456,14 @@ func (t *SimpleChaincode) invoke(stub shim.ChaincodeStubInterface, function stri
     }
     if strings.Contains(function, "update") == false && function != "delete_customer" {
       if function == "buy_item_by_money" {
-        argPos := 2
-        i, err := t.retrieve_item(stub, args[argPos])
+        i, err := t.retrieve_item(stub, args[1])
         if err != nil {
           logger.Infof("INVOKE: Error retrieving Item: %s", err)
           return nil, errors.New("Error retrieving Item")
         }
         return t.buy_item_by_money(stub, v, i)
       } else if function == "buy_item_by_wallet" {
-        argPos := 2
-        i, err := t.retrieve_item(stub, args[argPos])
+        i, err := t.retrieve_item(stub, args[1])
         if err != nil {
           logger.Infof("INVOKE: Error retrieving Item: %s", err)
           return nil, errors.New("Error retrieving Item")
@@ -470,7 +472,7 @@ func (t *SimpleChaincode) invoke(stub shim.ChaincodeStubInterface, function stri
       }
 
     } else if function == "update_name" {
-      return t.update_name(stub, v, args[0])
+      return t.update_name(stub, v, args[1])
     }
 
   }
@@ -498,6 +500,7 @@ func (t *SimpleChaincode) create_customer(stub shim.ChaincodeStubInterface, cust
     Name:       customerID,
     Address:    "UNDEFINED",
     Cashback:   0,
+    Token:      0,
     Email:      "UNDEFINED",
     Phone:      "UNDEFINED",
     Status:     true,
@@ -527,10 +530,13 @@ func (t *SimpleChaincode) create_customer(stub shim.ChaincodeStubInterface, cust
     return nil, errors.New("Unable to get customerID")
   }
   var customerIDs CustomerID_Holder
-  err = json.Unmarshal(bytes, &customerIDs)
-  if err != nil {
-    return nil, errors.New("Corrupt Customer record")
+  if len(bytes) > 0 {
+    err = json.Unmarshal(bytes, &customerIDs)
+    if err != nil {
+      return nil, errors.New("Corrupt Customer record")
+    }
   }
+
   customerIDs.Customers = append(customerIDs.Customers, customerID)
   bytes, err = json.Marshal(customerIDs)
   if err != nil {
@@ -662,18 +668,18 @@ func (t *SimpleChaincode) create_pos(stub shim.ChaincodeStubInterface, posID str
   if err != nil {
     return nil, errors.New("Unable to get PoSID")
   }
+  // this is default init already
   var posIDs PoSID_Holder
   if len(bytes) > 0 {
     err = json.Unmarshal(bytes, &posIDs)
     if err != nil {
       return nil, errors.New("Corrupt PoS record")
     }
-  } else {
-    // by default init an empty posIDs
-    posIDs = PoSID_Holder{}
   }
+
   // then append the item
   posIDs.PoSIDs = append(posIDs.PoSIDs, posID)
+
   bytes, err = json.Marshal(posIDs)
   if err != nil {
     logger.Info("Error creating PoS record")
@@ -905,7 +911,7 @@ func (t *SimpleChaincode) check_unique_customer(stub shim.ChaincodeStubInterface
 //=================================================================================================================================
 
 //=================================================================================================================================
-//   buy_item_by_money
+//   buy_item_by_money: gain cashback by percentage of item
 //=================================================================================================================================
 func (t *SimpleChaincode) buy_item_by_money(stub shim.ChaincodeStubInterface, v Customer, i Item) ([]byte, error) {
 
@@ -929,6 +935,11 @@ func (t *SimpleChaincode) buy_item_by_money(stub shim.ChaincodeStubInterface, v 
   return nil, nil // We are Done
 }
 
+//=================================================================================================================================
+//   buy_item_by_wallet: using cashback to buy item, subtract the price of item
+//   we will have others exchange function which convert loyaltypoints to token, stellar to token
+//   and token can be converted to cashback, cashback should be like $ or something that can substract the item price
+//=================================================================================================================================
 func (t *SimpleChaincode) buy_item_by_wallet(stub shim.ChaincodeStubInterface, v Customer, i Item) ([]byte, error) {
 
   if v.Status == true {

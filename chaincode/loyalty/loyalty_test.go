@@ -45,7 +45,7 @@ func checkInvoke(t *testing.T, stub *MockStub, args []string, value string) {
   }
 
   if string(res.Payload) != value {
-    fmt.Println("Query value", args, "was not", value, "as expected")
+    fmt.Println("Query value", args, "got", string(res.Payload), "was not", value, "as expected")
     t.FailNow()
   }
 }
@@ -67,7 +67,7 @@ func Test_Cert_Attrs(t *testing.T) {
   sinfo, _ := cid.New(stub)
 
   attrVal, found, err := sinfo.GetAttributeValue("attr1")
-  fmt.Printf("attrVal: %v, err: %v, found:%b \n", attrVal, err, found)
+  fmt.Printf("attrVal: %v, err: %v, found:%v \n", attrVal, err, found)
 
   if err != nil {
     t.Errorf("Error getting Unique ID of the submitter of the transaction")
@@ -103,6 +103,23 @@ func Benchmark_Invoke(b *testing.B) {
   }
 }
 
-// func Test_Customers(t *testing.T) {
+func Test_Customers(t *testing.T) {
+  scc := new(SimpleChaincode)
+  stub := NewMockStub("loyalty", scc)
+  checkInit(t, stub, []string{})
+
+  stub.MockInvoke("1", []string{"create_customer", "HT1234567"})
+  checkInvoke(t, stub, []string{"get_customer_details", "HT1234567"}, `{"customerID":"HT1234567","name":"HT1234567","address":"UNDEFINED","cashback":0,"token":0,"email":"UNDEFINED","phone":"UNDEFINED","status":true}`)
+
+  stub.MockInvoke("1", []string{"update_name", "HT1234567", "Tu Pham Thanh"})
+  checkInvoke(t, stub, []string{"get_customer_details", "HT1234567"}, `{"customerID":"HT1234567","name":"Tu Pham Thanh","address":"UNDEFINED","cashback":0,"token":0,"email":"UNDEFINED","phone":"UNDEFINED","status":true}`)
+
+}
+
+// func Test_Buying(t *testing.T) {
+
+// }
+
+// func Test_TokenExchange(t *testing.T) {
 
 // }
