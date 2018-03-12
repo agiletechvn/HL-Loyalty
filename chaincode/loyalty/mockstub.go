@@ -8,31 +8,44 @@ import (
 type MockStub struct {
   *shim.MockStub
   creator []byte
+  cc      shim.Chaincode
+  args    []string
 }
 
 func NewMockStub(name string, cc shim.Chaincode) *MockStub {
   return &MockStub{
     shim.NewMockStub(name, cc),
     nil,
+    cc,
+    nil,
   }
 }
 
-func StringArgsToBytesArgs(args []string) [][]byte {
-  a := make([][]byte, len(args))
-  for k, v := range args {
-    a[k] = []byte(v)
-  }
-  return a
+func (stub *MockStub) GetStringArgs() []string {
+  return stub.args
 }
 
-func (m *MockStub) GetCreator() ([]byte, error) {
-  return m.creator, nil
+// use name from return so that we just assign those, no need to return
+func (stub *MockStub) GetFunctionAndParameters() (string, []string) {
+  return stub.args[0], stub.args[1:]
 }
 
-func (m *MockStub) MockInit(uuid string, args []string) peer.Response {
-  return m.MockStub.MockInit(uuid, StringArgsToBytesArgs(args))
+func (stub *MockStub) GetCreator() ([]byte, error) {
+  return stub.creator, nil
 }
 
-func (m *MockStub) MockInvoke(uuid string, args []string) peer.Response {
-  return m.MockStub.MockInvoke(uuid, StringArgsToBytesArgs(args))
+func (stub *MockStub) MockInit(uuid string, args []string) peer.Response {
+  stub.args = args
+  stub.MockTransactionStart(uuid)
+  res := stub.cc.(*SimpleChaincode).Init(stub)
+  stub.MockTransactionEnd(uuid)
+  return res
+}
+
+func (stub *MockStub) MockInvoke(uuid string, args []string) peer.Response {
+  stub.args = args
+  stub.MockTransactionStart(uuid)
+  res := stub.cc.(*SimpleChaincode).Invoke(stub)
+  stub.MockTransactionEnd(uuid)
+  return res
 }
