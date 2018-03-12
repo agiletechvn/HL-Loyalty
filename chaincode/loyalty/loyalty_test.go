@@ -28,7 +28,15 @@ gz9ZYCeoEANEc7cTvE2v+5s=
 
 // testing.TB is an interface point to T and B, so it is pointer already
 func createStub(t testing.TB, name string) *MockStub {
-  scc := new(SimpleChaincode)
+  // new equal &
+  scc := &SimpleChaincode{
+    CashbackDecimal: 100,
+    TokenDecimal:    1000000000,
+    TokenSymbol:     "HTN",
+    TokenName:       "Hottab Token",
+    TotalSupply:     100000000,
+  }
+
   stub := NewMockStub(name, scc)
 
   sid := &msp.SerializedIdentity{
@@ -68,10 +76,11 @@ func checkInvoke(t *testing.T, stub *MockStub, args []string, params ...string) 
 func Test_Cert_Attrs(t *testing.T) {
 
   stub := createStub(t, "loyalty")
-
+  t.Logf("SmartContract: %+v", stub.GetChaincode())
   Mspid, _ := cid.GetMSPID(stub)
+  cert, _ := cid.GetX509Certificate(stub)
   attrVal, found, err := cid.GetAttributeValue(stub, "role")
-  t.Logf("Mspid: %v, attrVal: %v, found:%v \n", Mspid, attrVal, found)
+  t.Logf("Mspid: %v, commonName: %v, attrVal: %v, found:%v \n", Mspid, cert.Issuer.CommonName, attrVal, found)
 
   if err != nil {
     t.Errorf("Error getting Unique ID of the submitter of the transaction: %v", err)
@@ -131,7 +140,7 @@ func Test_Customers(t *testing.T) {
   checkInvoke(t, stub, []string{"create_customer", "123456789"})
   checkInvoke(t, stub, []string{"get_customer_details", "123456789"}, `{"customerID":"123456789","name":"`+CUSTOMER_PREFIX+`123456789","address":"UNDEFINED","cashback":0,"token":0,"email":"UNDEFINED","phone":"UNDEFINED","status":true}`)
 
-  checkInvoke(t, stub, []string{"update_name", "123456789", "Tu Pham Thanh"})
+  checkInvoke(t, stub, []string{"update_customer_name", "123456789", "Tu Pham Thanh"})
   checkInvoke(t, stub, []string{"get_customer_details", "123456789"}, `{"customerID":"123456789","name":"Tu Pham Thanh","address":"UNDEFINED","cashback":0,"token":0,"email":"UNDEFINED","phone":"UNDEFINED","status":true}`)
 
   checkInvoke(t, stub, []string{"create_customer", "123456788"})
@@ -157,9 +166,29 @@ func Benchmark_CreateCustomer(b *testing.B) {
   }
 }
 
-// func Test_Buying(t *testing.T) {
+func Test_Buying(t *testing.T) {
+  stub := createStub(t, "loyalty")
+  checkInit(t, stub, []string{"123456789", "Ha Noi"})
+  checkInvoke(t, stub, []string{"update_percentage", "123456789", "10"})
 
-// }
+  checkInvoke(t, stub, []string{"create_customer", "123456789"})
+  checkInvoke(t, stub, []string{"update_customer_name", "123456789", "Tu Pham Thanh"})
+
+  // price is $ multi by factor 100 decimal, so that we do not have to deal with float number
+  checkInvoke(t, stub, []string{"create_item", "123456789"})
+  checkInvoke(t, stub, []string{"update_item_name", "123456789", "Donut"})
+  checkInvoke(t, stub, []string{"update_pos_id", "123456789", "123456789"})
+  checkInvoke(t, stub, []string{"update_price", "123456789", "500"})
+  checkInvoke(t, stub, []string{"get_item_details", "123456789"}, `{"itemId":"123456789","posId":"123456789","itemName":"Donut","price":500}`)
+
+  // buy something, x10 product get 1 more with loyalty percentage 10%,
+  for i := 0; i < 11; i++ {
+    checkInvoke(t, stub, []string{"buy_item_by_money", "123456789", "123456789"})
+  }
+  checkInvoke(t, stub, []string{"get_customer_details", "123456789"}, `{"customerID":"123456789","name":"Tu Pham Thanh","address":"UNDEFINED","cashback":550,"token":0,"email":"UNDEFINED","phone":"UNDEFINED","status":true}`)
+  checkInvoke(t, stub, []string{"buy_item_by_wallet", "123456789", "123456789"})
+  checkInvoke(t, stub, []string{"get_customer_details", "123456789"}, `{"customerID":"123456789","name":"Tu Pham Thanh","address":"UNDEFINED","cashback":50,"token":0,"email":"UNDEFINED","phone":"UNDEFINED","status":true}`)
+}
 
 // func Test_TokenExchange(t *testing.T) {
 

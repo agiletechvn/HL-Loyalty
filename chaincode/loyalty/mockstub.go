@@ -34,10 +34,14 @@ func (stub *MockStub) GetCreator() ([]byte, error) {
   return stub.creator, nil
 }
 
+func (stub *MockStub) GetChaincode() *SimpleChaincode {
+  return stub.cc.(*SimpleChaincode)
+}
+
 func (stub *MockStub) MockInit(uuid string, args []string) peer.Response {
   stub.args = args
   stub.MockTransactionStart(uuid)
-  res := stub.cc.(*SimpleChaincode).Init(stub)
+  res := stub.GetChaincode().Init(stub)
   stub.MockTransactionEnd(uuid)
   return res
 }
@@ -45,7 +49,7 @@ func (stub *MockStub) MockInit(uuid string, args []string) peer.Response {
 func (stub *MockStub) MockInvoke(uuid string, args []string) peer.Response {
   stub.args = args
   stub.MockTransactionStart(uuid)
-  res := stub.cc.(*SimpleChaincode).Invoke(stub)
+  res := stub.GetChaincode().Invoke(stub)
   stub.MockTransactionEnd(uuid)
   return res
 }

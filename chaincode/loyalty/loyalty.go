@@ -15,8 +15,8 @@ import (
   "github.com/hyperledger/fabric/core/chaincode/shim"
   "github.com/hyperledger/fabric/protos/peer"
   "regexp"
-  // "strconv"
-  "strings"
+  "strconv"
+  // "strings"
 )
 
 // using logger so that logs only appear if the ChaincodeLogger LoggingLevel is set to
@@ -46,6 +46,11 @@ const VENDOR = "vendor"
 //        and other HyperLedger functions)
 //==============================================================================================================================
 type SimpleChaincode struct {
+  CashbackDecimal int
+  TokenDecimal    int
+  TokenSymbol     string
+  TokenName       string
+  TotalSupply     int64
 }
 
 //==============================================================================================================================
@@ -56,7 +61,9 @@ type Customer struct {
   CustomerID string `json:"customerID"`
   Name       string `json:"name"`
   Address    string `json:"address"`
-  Cashback   int    `json:"cashback"`
+  // cashback received directly from buying items
+  // token received from doing comment, rating
+  Cashback int `json:"cashback"`
   // transfer back token to get cashback or stellar
   // loyalty point is token so that it incentivizes users directly
   // this is not ICO, so token is unlimited, transfer back token is like burning,
@@ -126,16 +133,16 @@ func (t *SimpleChaincode) read_cert_attribute(stub shim.ChaincodeStubInterface, 
 }
 
 //==============================================================================================================================
-//   check_affiliation - Takes an ecert as a string, decodes it to remove html encoding then parses it and checks the
-//              certificates common name. The affiliation is stored as part of the common name.
+//   check_role - Takes an ecert as a string, decodes it to remove html encoding then parses it and checks the
+//              certificates common name. The role is stored as part of the common name.
 //==============================================================================================================================
 
-func (t *SimpleChaincode) check_affiliation(stub shim.ChaincodeStubInterface) (string, error) {
-  affiliation, err := t.read_cert_attribute(stub, "role")
+func (t *SimpleChaincode) check_role(stub shim.ChaincodeStubInterface) (string, error) {
+  role, err := t.read_cert_attribute(stub, "role")
   if err != nil {
     return "", errors.New("Couldn't get attribute 'role'. Error: " + err.Error())
   }
-  return affiliation, nil
+  return role, nil
 
 }
 
@@ -148,16 +155,16 @@ func (t *SimpleChaincode) get_caller_data(stub shim.ChaincodeStubInterface) (str
 
   mspID, _ := cid.GetMSPID(stub)
 
-  affiliation, err := t.check_affiliation(stub)
+  role, err := t.check_role(stub)
 
   if err != nil {
     logger.Errorf("Couldn't get caller data, got error: %v", err)
     return "", "", err
   }
 
-  logger.Infof("msp: %s, affiliation: %s", mspID, affiliation)
+  logger.Infof("msp: %s, role: %s", mspID, role)
 
-  return mspID, affiliation, nil
+  return mspID, role, nil
 }
 
 //==============================================================================================================================
@@ -177,7 +184,7 @@ func (t *SimpleChaincode) retrieve_customer(stub shim.ChaincodeStubInterface, cu
   err = json.Unmarshal(bytes, &v)
 
   if err != nil {
-    logger.Infof("RETRIEVE_CUSTOMER: Corrupt Customer record "+string(bytes)+": %s", err)
+    logger.Infof("RETRIEVE_CUSTOMER: Corrupt Customer record: %s, got error: %s", bytes, err)
     return v, errors.New("RETRIEVE_CUSTOMER: Corrupt Customer record" + string(bytes))
   }
 
@@ -202,7 +209,7 @@ func (t *SimpleChaincode) retrieve_item(stub shim.ChaincodeStubInterface, itemID
   err = json.Unmarshal(bytes, &v)
 
   if err != nil {
-    logger.Infof("RETRIEVE_ITEM: Corrupt Item record "+string(bytes)+": %s", err)
+    logger.Infof("RETRIEVE_ITEM: Corrupt Item record: %s, got error: %s", bytes, err)
     return v, errors.New("RETRIEVE_ITEM: Corrupt Item record" + string(bytes))
   }
 
@@ -254,7 +261,7 @@ func (t *SimpleChaincode) retrieve_pos(stub shim.ChaincodeStubInterface, posID s
   err = json.Unmarshal(bytes, &v)
 
   if err != nil {
-    logger.Infof("RETRIEVE_PoS: Corrupt PoS record "+string(bytes)+": %s", err)
+    logger.Infof("RETRIEVE_PoS: Corrupt PoS record: %s, got error: %s", bytes, err)
     return v, errors.New("RETRIEVE_ITEM: Corrupt PoS record" + string(bytes))
   }
 
@@ -391,6 +398,36 @@ func (t *SimpleChaincode) invoke(stub shim.ChaincodeStubInterface, function stri
   case "create_item":
     return t.create_item(stub, args[0])
 
+  // other updates: pos, item
+  case "update_item_name", "update_price", "update_pos_id":
+    item, err := t.retrieve_item(stub, args[0])
+    // check error first
+    if err != nil {
+      return nil, err
+    }
+    // finally do the rest
+    if function == "update_price" {
+      return t.update_price(stub, item, args[1])
+    } else if function == "update_item_name" {
+      return t.update_item_name(stub, item, args[1])
+    } else {
+      return t.update_pos_id(stub, item, args[1])
+    }
+
+  case "update_pos_name", "update_percentage":
+    pos, err := t.retrieve_pos(stub, args[0])
+    // check error first
+    if err != nil {
+      return nil, err
+    }
+    // do the rest
+    if function == "update_pos_name" {
+      return t.update_pos_name(stub, pos, args[0])
+    } else {
+      return t.update_percentage(stub, pos, args[1])
+    }
+
+  // process for existing customer
   default:
     v, err := t.retrieve_customer(stub, args[0])
 
@@ -398,25 +435,23 @@ func (t *SimpleChaincode) invoke(stub shim.ChaincodeStubInterface, function stri
       logger.Infof("INVOKE: Error retrieving Customer: %s", err)
       return nil, errors.New("Error retrieving customer")
     }
-    if strings.Contains(function, "update") == false && function != "delete_customer" {
-      if function == "buy_item_by_money" {
-        i, err := t.retrieve_item(stub, args[1])
-        if err != nil {
-          logger.Infof("INVOKE: Error retrieving Item: %s", err)
-          return nil, errors.New("Error retrieving Item")
-        }
-        return t.buy_item_by_money(stub, v, i)
-      } else if function == "buy_item_by_wallet" {
-        i, err := t.retrieve_item(stub, args[1])
-        if err != nil {
-          logger.Infof("INVOKE: Error retrieving Item: %s", err)
-          return nil, errors.New("Error retrieving Item")
-        }
-        return t.buy_item_by_wallet(stub, v, i)
-      }
 
-    } else if function == "update_name" {
-      return t.update_name(stub, v, args[1])
+    // update customer name
+    if function == "update_customer_name" {
+      return t.update_customer_name(stub, v, args[1])
+    }
+
+    // buying item
+    item, err := t.retrieve_item(stub, args[1])
+    if err != nil {
+      logger.Infof("INVOKE: Error retrieving Item: %s", err)
+      return nil, errors.New("Error retrieving Item")
+    }
+
+    if function == "buy_item_by_money" {
+      return t.buy_item_by_money(stub, v, item)
+    } else if function == "buy_item_by_wallet" {
+      return t.buy_item_by_wallet(stub, v, item)
     }
 
   }
@@ -440,8 +475,8 @@ func (t *SimpleChaincode) ping(stub shim.ChaincodeStubInterface) ([]byte, error)
 //=================================================================================================================================
 func (t *SimpleChaincode) create_customer(stub shim.ChaincodeStubInterface, customerID string) ([]byte, error) {
 
-  caller, caller_affiliation, _ := t.get_caller_data(stub)
-  if caller_affiliation != "member" {
+  caller, role, _ := t.get_caller_data(stub)
+  if role != "member" {
     return nil, errors.New(fmt.Sprintf("Unauthorized: %v", caller))
   }
 
@@ -480,9 +515,9 @@ func (t *SimpleChaincode) create_customer(stub shim.ChaincodeStubInterface, cust
 }
 
 //=================================================================================================================================
-//   update_name
+//   update_customer_name
 //=================================================================================================================================
-func (t *SimpleChaincode) update_name(stub shim.ChaincodeStubInterface, v Customer, new_value string) ([]byte, error) {
+func (t *SimpleChaincode) update_customer_name(stub shim.ChaincodeStubInterface, v Customer, new_value string) ([]byte, error) {
 
   if v.Status == true {
     v.Name = new_value
@@ -492,7 +527,7 @@ func (t *SimpleChaincode) update_name(stub shim.ChaincodeStubInterface, v Custom
 
   _, err := t.save_changes(stub, v)
   if err != nil {
-    logger.Infof("UPDATE_NAME: Error saving changes: %s", err)
+    logger.Infof("UPDATE_CUSTOMER_NAME: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   return nil, nil
@@ -503,8 +538,8 @@ func (t *SimpleChaincode) update_name(stub shim.ChaincodeStubInterface, v Custom
 //=================================================================================================================================
 func (t *SimpleChaincode) update_address(stub shim.ChaincodeStubInterface, v Customer, new_value string) ([]byte, error) {
 
-  caller, caller_affiliation, _ := t.get_caller_data(stub)
-  if caller_affiliation != "member" {
+  caller, role, _ := t.get_caller_data(stub)
+  if role != "member" {
     return nil, errors.New(fmt.Sprintf("Unauthorized: %v", caller))
   }
 
@@ -527,8 +562,8 @@ func (t *SimpleChaincode) update_address(stub shim.ChaincodeStubInterface, v Cus
 //=================================================================================================================================
 func (t *SimpleChaincode) update_cashback(stub shim.ChaincodeStubInterface, v Customer, new_value int) ([]byte, error) {
 
-  caller, caller_affiliation, _ := t.get_caller_data(stub)
-  if caller_affiliation != "member" {
+  caller, role, _ := t.get_caller_data(stub)
+  if role != "member" {
     return nil, errors.New(fmt.Sprintf("Unauthorized: %v", caller))
   }
 
@@ -551,8 +586,8 @@ func (t *SimpleChaincode) update_cashback(stub shim.ChaincodeStubInterface, v Cu
 //=================================================================================================================================
 func (t *SimpleChaincode) update_email(stub shim.ChaincodeStubInterface, v Customer, new_value string) ([]byte, error) {
 
-  caller, caller_affiliation, _ := t.get_caller_data(stub)
-  if caller_affiliation != "member" {
+  caller, role, _ := t.get_caller_data(stub)
+  if role != "member" {
     return nil, errors.New(fmt.Sprintf("Unauthorized: %v", caller))
   }
 
@@ -575,8 +610,8 @@ func (t *SimpleChaincode) update_email(stub shim.ChaincodeStubInterface, v Custo
 //=================================================================================================================================
 func (t *SimpleChaincode) create_pos(stub shim.ChaincodeStubInterface, posID string, posName string) ([]byte, error) {
 
-  caller, caller_affiliation, _ := t.get_caller_data(stub)
-  if caller_affiliation != "member" {
+  caller, role, _ := t.get_caller_data(stub)
+  if role != "member" {
     return nil, errors.New(fmt.Sprintf("Unauthorized: %v", caller))
   }
 
@@ -611,12 +646,12 @@ func (t *SimpleChaincode) create_pos(stub shim.ChaincodeStubInterface, posID str
 }
 
 //=================================================================================================================================
-//   update_posname
+//   update_pos_name
 //=================================================================================================================================
-func (t *SimpleChaincode) update_posname(stub shim.ChaincodeStubInterface, v PoS, new_value string) ([]byte, error) {
+func (t *SimpleChaincode) update_pos_name(stub shim.ChaincodeStubInterface, v PoS, new_value string) ([]byte, error) {
 
-  caller, caller_affiliation, _ := t.get_caller_data(stub)
-  if caller_affiliation != "member" {
+  caller, role, _ := t.get_caller_data(stub)
+  if role != "member" {
     return nil, errors.New(fmt.Sprintf("Unauthorized: %v", caller))
   }
 
@@ -628,7 +663,7 @@ func (t *SimpleChaincode) update_posname(stub shim.ChaincodeStubInterface, v PoS
 
   _, err := t.save_changes_pos(stub, v)
   if err != nil {
-    logger.Infof("UPDATE_POSNAME: Error saving changes: %s", err)
+    logger.Infof("UPDATE_POS_NAME: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   return nil, nil
@@ -637,11 +672,16 @@ func (t *SimpleChaincode) update_posname(stub shim.ChaincodeStubInterface, v PoS
 //=================================================================================================================================
 //   update_percentage
 //=================================================================================================================================
-func (t *SimpleChaincode) update_percentage(stub shim.ChaincodeStubInterface, v PoS, new_value int) ([]byte, error) {
+func (t *SimpleChaincode) update_percentage(stub shim.ChaincodeStubInterface, v PoS, percentage string) ([]byte, error) {
 
-  caller, caller_affiliation, _ := t.get_caller_data(stub)
-  if caller_affiliation != "member" {
+  caller, role, _ := t.get_caller_data(stub)
+  if role != "member" {
     return nil, errors.New(fmt.Sprintf("Unauthorized: %v", caller))
+  }
+
+  new_value, err := strconv.Atoi(percentage)
+  if err != nil {
+    return nil, errors.New("Expecting integer value for item percentage")
   }
 
   if v.Status == true {
@@ -650,7 +690,7 @@ func (t *SimpleChaincode) update_percentage(stub shim.ChaincodeStubInterface, v 
     return nil, errors.New(fmt.Sprint("Not found"))
   }
 
-  _, err := t.save_changes_pos(stub, v)
+  _, err = t.save_changes_pos(stub, v)
   if err != nil {
     logger.Infof("UPDATE_PERCENTAGE: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
@@ -663,8 +703,8 @@ func (t *SimpleChaincode) update_percentage(stub shim.ChaincodeStubInterface, v 
 //=================================================================================================================================
 func (t *SimpleChaincode) create_item(stub shim.ChaincodeStubInterface, itemID string) ([]byte, error) {
 
-  caller, caller_affiliation, _ := t.get_caller_data(stub)
-  if caller_affiliation != "member" {
+  caller, role, _ := t.get_caller_data(stub)
+  if role != "member" {
     return nil, errors.New(fmt.Sprintf("Unauthorized: %v", caller))
   }
 
@@ -704,8 +744,8 @@ func (t *SimpleChaincode) create_item(stub shim.ChaincodeStubInterface, itemID s
 //=================================================================================================================================
 func (t *SimpleChaincode) update_item_name(stub shim.ChaincodeStubInterface, v Item, new_value string) ([]byte, error) {
 
-  caller, caller_affiliation, _ := t.get_caller_data(stub)
-  if caller_affiliation != "member" {
+  caller, role, _ := t.get_caller_data(stub)
+  if role != "member" {
     return nil, errors.New(fmt.Sprintf("Unauthorized: %v", caller))
   }
 
@@ -720,12 +760,12 @@ func (t *SimpleChaincode) update_item_name(stub shim.ChaincodeStubInterface, v I
 }
 
 //=================================================================================================================================
-//   update_posid
+//   update_pos_id
 //=================================================================================================================================
-func (t *SimpleChaincode) update_posid(stub shim.ChaincodeStubInterface, v Item, new_value string) ([]byte, error) {
+func (t *SimpleChaincode) update_pos_id(stub shim.ChaincodeStubInterface, v Item, new_value string) ([]byte, error) {
 
-  caller, caller_affiliation, _ := t.get_caller_data(stub)
-  if caller_affiliation != "member" {
+  caller, role, _ := t.get_caller_data(stub)
+  if role != "member" {
     return nil, errors.New(fmt.Sprintf("Unauthorized: %v", caller))
   }
 
@@ -733,7 +773,7 @@ func (t *SimpleChaincode) update_posid(stub shim.ChaincodeStubInterface, v Item,
 
   _, err := t.save_changes_item(stub, v)
   if err != nil {
-    logger.Infof("UPDATE_POSID: Error saving changes: %s", err)
+    logger.Infof("UPDATE_POS_ID: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   return nil, nil
@@ -742,16 +782,21 @@ func (t *SimpleChaincode) update_posid(stub shim.ChaincodeStubInterface, v Item,
 //=================================================================================================================================
 //   update_price
 //=================================================================================================================================
-func (t *SimpleChaincode) update_price(stub shim.ChaincodeStubInterface, v Item, new_value int) ([]byte, error) {
+func (t *SimpleChaincode) update_price(stub shim.ChaincodeStubInterface, v Item, price string) ([]byte, error) {
 
-  caller, caller_affiliation, _ := t.get_caller_data(stub)
-  if caller_affiliation != "member" {
+  caller, role, _ := t.get_caller_data(stub)
+  if role != "member" {
     return nil, errors.New(fmt.Sprintf("Unauthorized: %v", caller))
+  }
+
+  new_value, err := strconv.Atoi(price)
+  if err != nil {
+    return nil, errors.New("Expecting integer value for item price")
   }
 
   v.Price = new_value
 
-  _, err := t.save_changes_item(stub, v)
+  _, err = t.save_changes_item(stub, v)
   if err != nil {
     logger.Infof("UPDATE_PRICE: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
@@ -849,7 +894,9 @@ func (t *SimpleChaincode) buy_item_by_money(stub shim.ChaincodeStubInterface, v 
       logger.Infof("INVOKE: Error retrieving PoS: %s", err)
       return nil, errors.New("Error retrieving PoS")
     }
-    v.Cashback = v.Cashback + (p.LoyaltyPercentage*i.Price)/100
+    bonus := (p.LoyaltyPercentage * i.Price) / 100
+    v.Cashback = v.Cashback + bonus
+    logger.Infof("Customer %v received %d, balance is %d", v.CustomerID, bonus, v.Cashback)
   } else { // Otherwise if there is an error
     logger.Infof("buy_item_by_money: Customer Not Active")
     return nil, errors.New(fmt.Sprintf(" Customer Not Active."))
@@ -873,6 +920,7 @@ func (t *SimpleChaincode) buy_item_by_wallet(stub shim.ChaincodeStubInterface, v
   if v.Status == true {
     if v.Cashback > i.Price {
       v.Cashback = v.Cashback - i.Price
+      logger.Infof("Customer %v spent %d, balance is %d", v.CustomerID, i.Price, v.Cashback)
     } else {
       logger.Infof("buy_item_by_wallet: Not enough balance")
       return nil, errors.New(fmt.Sprintf(" Not enough balance."))
@@ -893,8 +941,13 @@ func (t *SimpleChaincode) buy_item_by_wallet(stub shim.ChaincodeStubInterface, v
 //   Main - main - Starts up the chaincode
 //=================================================================================================================================
 func main() {
-
-  err := shim.Start(new(SimpleChaincode))
+  err := shim.Start(&SimpleChaincode{
+    CashbackDecimal: 100,
+    TokenDecimal:    1000000000,
+    TokenSymbol:     "HTN",
+    TokenName:       "Hottab Token",
+    TotalSupply:     100000000,
+  })
   if err != nil {
     logger.Infof("Error starting Chaincode: %s", err)
   }
