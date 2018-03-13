@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+// for easy demonstration should use jquery and angular version 1
 
 'use strict';
 
