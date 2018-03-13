@@ -190,6 +190,10 @@ func Test_Buying(t *testing.T) {
   checkInvoke(t, stub, []string{"get_customer_details", "123456789"}, `{"customerID":"123456789","name":"Tu Pham Thanh","address":"UNDEFINED","cashback":50,"token":0,"email":"UNDEFINED","phone":"UNDEFINED","status":true}`)
 }
 
+func Test_Transaction(t *testing.T) {
+  stub := createStub(t, "loyalty")
+}
+
 // func Test_TokenExchange(t *testing.T) {
 
 // }

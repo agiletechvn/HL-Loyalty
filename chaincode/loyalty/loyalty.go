@@ -46,11 +46,12 @@ const VENDOR = "vendor"
 //        and other HyperLedger functions)
 //==============================================================================================================================
 type SimpleChaincode struct {
-  CashbackDecimal int
-  TokenDecimal    int
-  TokenSymbol     string
-  TokenName       string
-  TotalSupply     int64
+  CashbackDecimal   uint
+  TokenDecimal      uint
+  TokenSymbol       string
+  TokenName         string
+  TotalSupply       uint64
+  CirculatingSupply uint64
 }
 
 //==============================================================================================================================
@@ -63,12 +64,12 @@ type Customer struct {
   Address    string `json:"address"`
   // cashback received directly from buying items
   // token received from doing comment, rating
-  Cashback int `json:"cashback"`
+  Cashback uint `json:"cashback"`
   // transfer back token to get cashback or stellar
   // loyalty point is token so that it incentivizes users directly
   // this is not ICO, so token is unlimited, transfer back token is like burning,
   // but we might allow transfer between 2 customers
-  Token  int    `json:"token"`
+  Token  uint   `json:"token"`
   Email  string `json:"email"`
   Phone  string `json:"phone"`
   Status bool   `json:"status"`
@@ -83,7 +84,7 @@ type PoS struct {
   PoSID             string `json:"posId"`
   PoSName           string `json:"posName"`
   Status            bool   `json:"status"`
-  LoyaltyPercentage int    `json:"percentage"`
+  LoyaltyPercentage uint   `json:"percentage"`
 }
 
 //==============================================================================================================================
@@ -94,7 +95,7 @@ type Item struct {
   ItemID   string `json:"itemId"`
   PoSID    string `json:"posId"`
   ItemName string `json:"itemName"`
-  Price    int    `json:"price"`
+  Price    uint   `json:"price"`
 }
 
 //==============================================================================================================================
@@ -441,6 +442,21 @@ func (t *SimpleChaincode) invoke(stub shim.ChaincodeStubInterface, function stri
       return t.update_customer_name(stub, v, args[1])
     }
 
+    // reward cashback
+    if function == "reward_cashback" {
+      return t.reward_cashback(stub, v, args[1])
+    }
+
+    // reward token
+    if function == "reward_token" {
+      return t.reward_token(stub, v, args[1])
+    }
+
+    // burn token
+    if function == "burn_token" {
+      return t.burn_token(stub, v, args[1])
+    }
+
     // buying item
     item, err := t.retrieve_item(stub, args[1])
     if err != nil {
@@ -494,7 +510,7 @@ func (t *SimpleChaincode) create_customer(stub shim.ChaincodeStubInterface, cust
   // matched = true if the customerId passed fits format of two letters followed by seven digits
   matched := idPattern.Match([]byte(customerID))
   if customerID == "" || matched == false {
-    logger.Errorf("CREATE_CUSTOMER: Invalid customerID provided: %v", customerID)
+    logger.Errorf("[create_customer]: Invalid customerID provided: %v", customerID)
     return nil, errors.New("Invalid customerID provided " + customerID)
   }
 
@@ -507,7 +523,7 @@ func (t *SimpleChaincode) create_customer(stub shim.ChaincodeStubInterface, cust
 
   _, err = t.save_changes(stub, v)
   if err != nil {
-    logger.Errorf("CREATE_CUSTOMER: Error saving changes: %s", err)
+    logger.Errorf("[create_customer]: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
 
@@ -527,7 +543,7 @@ func (t *SimpleChaincode) update_customer_name(stub shim.ChaincodeStubInterface,
 
   _, err := t.save_changes(stub, v)
   if err != nil {
-    logger.Infof("UPDATE_CUSTOMER_NAME: Error saving changes: %s", err)
+    logger.Infof("[update_customer_name]: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   return nil, nil
@@ -551,7 +567,7 @@ func (t *SimpleChaincode) update_address(stub shim.ChaincodeStubInterface, v Cus
 
   _, err := t.save_changes(stub, v)
   if err != nil {
-    logger.Infof("UPDATE_ADDRESS: Error saving changes: %s", err)
+    logger.Infof("[update_address]: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   return nil, nil
@@ -560,7 +576,7 @@ func (t *SimpleChaincode) update_address(stub shim.ChaincodeStubInterface, v Cus
 //=================================================================================================================================
 //   update_cashback
 //=================================================================================================================================
-func (t *SimpleChaincode) update_cashback(stub shim.ChaincodeStubInterface, v Customer, new_value int) ([]byte, error) {
+func (t *SimpleChaincode) update_cashback(stub shim.ChaincodeStubInterface, v Customer, new_value uint) ([]byte, error) {
 
   caller, role, _ := t.get_caller_data(stub)
   if role != "member" {
@@ -569,13 +585,15 @@ func (t *SimpleChaincode) update_cashback(stub shim.ChaincodeStubInterface, v Cu
 
   if v.Status == true {
     v.Cashback = new_value
+    logger.Infof("[update_cashback]: Customer %v got balance: %d", v.CustomerID, new_value)
   } else {
+    logger.Infof("[update_cashback]: Customer Not Active")
     return nil, errors.New(fmt.Sprint("Not found"))
   }
 
   _, err := t.save_changes(stub, v)
   if err != nil {
-    logger.Infof("UPDATE_CASHBACK: Error saving changes: %s", err)
+    logger.Infof("[update_cashback]: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   return nil, nil
@@ -599,7 +617,7 @@ func (t *SimpleChaincode) update_email(stub shim.ChaincodeStubInterface, v Custo
 
   _, err := t.save_changes(stub, v)
   if err != nil {
-    logger.Infof("UPDATE_EMAIL: Error saving changes: %s", err)
+    logger.Infof("[update_email]: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   return nil, nil
@@ -626,7 +644,7 @@ func (t *SimpleChaincode) create_pos(stub shim.ChaincodeStubInterface, posID str
   matched := idPattern.Match([]byte(posID))
 
   if posID == "" || matched == false {
-    logger.Infof("CREATE_POS: Invalid posID provided")
+    logger.Infof("[create_pos]: Invalid posID provided")
     return nil, errors.New("Invalid posID provided")
   }
 
@@ -638,7 +656,7 @@ func (t *SimpleChaincode) create_pos(stub shim.ChaincodeStubInterface, posID str
 
   _, err = t.save_changes_pos(stub, v)
   if err != nil {
-    logger.Infof("CREATE_POS: Error saving changes: %s", err)
+    logger.Infof("[create_pos]: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
 
@@ -663,7 +681,7 @@ func (t *SimpleChaincode) update_pos_name(stub shim.ChaincodeStubInterface, v Po
 
   _, err := t.save_changes_pos(stub, v)
   if err != nil {
-    logger.Infof("UPDATE_POS_NAME: Error saving changes: %s", err)
+    logger.Infof("[update_pos_name]: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   return nil, nil
@@ -685,21 +703,21 @@ func (t *SimpleChaincode) update_percentage(stub shim.ChaincodeStubInterface, v 
   }
 
   if v.Status == true {
-    v.LoyaltyPercentage = new_value
+    v.LoyaltyPercentage = uint(new_value)
   } else {
     return nil, errors.New(fmt.Sprint("Not found"))
   }
 
   _, err = t.save_changes_pos(stub, v)
   if err != nil {
-    logger.Infof("UPDATE_PERCENTAGE: Error saving changes: %s", err)
+    logger.Infof("[update_percentage]: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   return nil, nil
 }
 
 //=================================================================================================================================
-//   Create PoS - Creates the initial JSON for the vehcile and then saves it to the ledger.
+//   create_item - Creates the initial JSON for the vehcile and then saves it to the ledger.
 //=================================================================================================================================
 func (t *SimpleChaincode) create_item(stub shim.ChaincodeStubInterface, itemID string) ([]byte, error) {
 
@@ -720,7 +738,7 @@ func (t *SimpleChaincode) create_item(stub shim.ChaincodeStubInterface, itemID s
   matched := idPattern.Match([]byte(itemID))
 
   if itemID == "" || matched == false {
-    logger.Infof("CREATE_ITEM: Invalid itemID provided")
+    logger.Infof("[create_item]: Invalid itemID provided")
     return nil, errors.New("Invalid itemID provided")
   }
 
@@ -732,7 +750,7 @@ func (t *SimpleChaincode) create_item(stub shim.ChaincodeStubInterface, itemID s
 
   _, err = t.save_changes_item(stub, v)
   if err != nil {
-    logger.Infof("CREATE_ITEM: Error saving changes: %s", err)
+    logger.Infof("[create_item]: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
 
@@ -753,7 +771,7 @@ func (t *SimpleChaincode) update_item_name(stub shim.ChaincodeStubInterface, v I
 
   _, err := t.save_changes_item(stub, v)
   if err != nil {
-    logger.Infof("UPDATE_ITEM_NAME: Error saving changes: %s", err)
+    logger.Infof("[update_item_name]: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   return nil, nil
@@ -773,7 +791,7 @@ func (t *SimpleChaincode) update_pos_id(stub shim.ChaincodeStubInterface, v Item
 
   _, err := t.save_changes_item(stub, v)
   if err != nil {
-    logger.Infof("UPDATE_POS_ID: Error saving changes: %s", err)
+    logger.Infof("[update_pos_id]: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   return nil, nil
@@ -791,14 +809,14 @@ func (t *SimpleChaincode) update_price(stub shim.ChaincodeStubInterface, v Item,
 
   new_value, err := strconv.Atoi(price)
   if err != nil {
-    return nil, errors.New("Expecting integer value for item price")
+    return nil, errors.New("[update_price]: Expecting integer value for item price")
   }
 
-  v.Price = new_value
+  v.Price = uint(new_value)
 
   _, err = t.save_changes_item(stub, v)
   if err != nil {
-    logger.Infof("UPDATE_PRICE: Error saving changes: %s", err)
+    logger.Infof("[update_price]: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   return nil, nil
@@ -813,7 +831,7 @@ func (t *SimpleChaincode) get_customer_details(stub shim.ChaincodeStubInterface,
 
   bytes, err := stub.GetState(CUSTOMER_PREFIX + customerID)
   if err != nil {
-    logger.Infof("get_customer_details: Error retrieving customer: %s, with customerID = %v", err, customerID)
+    logger.Infof("[get_customer_details]: Error retrieving customer: %s, with customerID = %v", err, customerID)
     return nil, errors.New("get_customer_details: Error retrieving Customer with customerID = " + customerID)
   }
   return bytes, nil
@@ -884,30 +902,83 @@ func (t *SimpleChaincode) check_unique_customer(stub shim.ChaincodeStubInterface
 //=================================================================================================================================
 
 //=================================================================================================================================
-//   buy_item_by_money: gain cashback by percentage of item
+// reward_token - value must be positive number
 //=================================================================================================================================
-func (t *SimpleChaincode) buy_item_by_money(stub shim.ChaincodeStubInterface, v Customer, i Item) ([]byte, error) {
-
-  if v.Status == true {
-    p, err := t.retrieve_pos(stub, i.PoSID)
-    if err != nil {
-      logger.Infof("INVOKE: Error retrieving PoS: %s", err)
-      return nil, errors.New("Error retrieving PoS")
-    }
-    bonus := (p.LoyaltyPercentage * i.Price) / 100
-    v.Cashback = v.Cashback + bonus
-    logger.Infof("Customer %v received %d, balance is %d", v.CustomerID, bonus, v.Cashback)
-  } else { // Otherwise if there is an error
-    logger.Infof("buy_item_by_money: Customer Not Active")
-    return nil, errors.New(fmt.Sprintf(" Customer Not Active."))
+func (t *SimpleChaincode) reward_token(stub shim.ChaincodeStubInterface, v Customer, value string) ([]byte, error) {
+  tokenAmount, err := strconv.Atoi(value)
+  if err != nil || tokenAmount < 0 {
+    return nil, errors.New("burn_token: Expecting unsigned integer value for token amount")
   }
 
-  _, err := t.save_changes(stub, v) // Write new state
+  // Perform the execution
+  if t.CirculatingSupply+uint64(tokenAmount) > t.TotalSupply {
+    logger.Infof("[reward_token]: circulating supply exceeds total supply.")
+    return nil, errors.New(fmt.Sprintf(" circulating supply exceeds total supply."))
+  }
+
+  t.CirculatingSupply = t.CirculatingSupply + uint64(tokenAmount)
+  v.Token = v.Token + uint(tokenAmount)
+  logger.Infof("[reward_token]: Customer %v Token = %d, CirculatingSupply = %d", v.Token, t.CirculatingSupply)
+  _, err = t.save_changes(stub, v) // Write new state
   if err != nil {
-    logger.Infof("buy_item_by_money: Error saving changes: %s", err)
+    logger.Infof("[reward_token]: Error saving changes: %s", err)
     return nil, errors.New("Error saving changes")
   }
   return nil, nil // We are Done
+}
+
+//=================================================================================================================================
+// burn_token - value must be positive number
+//=================================================================================================================================
+func (t *SimpleChaincode) burn_token(stub shim.ChaincodeStubInterface, v Customer, value string) ([]byte, error) {
+  tokenAmount, err := strconv.Atoi(value)
+  if err != nil || tokenAmount < 0 {
+    return nil, errors.New("burn_token: Expecting unsigned integer value for token amount")
+  }
+
+  // Perform the execution
+  if v.Token < uint(tokenAmount) {
+    // return to specific user so no need to format detail
+    logger.Infof("[burn_token]: Not enough token to burn for customer %v, token balance: %d, going to burn: %d.", v.CustomerID, v.Token, tokenAmount)
+    return nil, errors.New(fmt.Sprintf(" Not enough token to burn, token balance: %d, going to burn: %d.", v.Token, tokenAmount))
+  }
+  // burn token to exchange back to loyalty points or withdraw via stellar
+  // we just limit circualating supply to not exceed the total supply, but we can not manage stellar backing wallets.
+  t.CirculatingSupply = t.CirculatingSupply - uint64(tokenAmount)
+  v.Token = v.Token - uint(tokenAmount)
+  logger.Infof("[burn_token]: Customer %v Token = %d, CirculatingSupply = %d", v.Token, t.CirculatingSupply)
+  _, err = t.save_changes(stub, v) // Write new state
+  if err != nil {
+    logger.Infof("[burn_token]: Error saving changes: %s", err)
+    return nil, errors.New("Error saving changes")
+  }
+  return nil, nil // We are Done
+}
+
+//=================================================================================================================================
+// reward_cashback
+//=================================================================================================================================
+func (t *SimpleChaincode) reward_cashback(stub shim.ChaincodeStubInterface, v Customer, value string) ([]byte, error) {
+  bonus, err := strconv.Atoi(value)
+  if err != nil {
+    return nil, errors.New("reward_cashback: Expecting integer value for item price")
+  }
+  return t.update_cashback(stub, v, v.Cashback+uint(bonus))
+}
+
+//=================================================================================================================================
+//   buy_item_by_money: gain cashback by percentage of item
+//=================================================================================================================================
+func (t *SimpleChaincode) buy_item_by_money(stub shim.ChaincodeStubInterface, v Customer, item Item) ([]byte, error) {
+  // customer can be deactive at any moment
+  p, err := t.retrieve_pos(stub, item.PoSID)
+  if err != nil {
+    logger.Infof("[buy_item_by_money]: Error retrieving PoS: %s", err)
+    return nil, errors.New("Error retrieving PoS")
+  }
+  bonus := (p.LoyaltyPercentage * item.Price) / 100
+  logger.Infof("[buy_item_by_money]: Buying item %v got bonus: %d", item.PoSID, bonus)
+  return t.update_cashback(stub, v, v.Cashback+bonus)
 }
 
 //=================================================================================================================================
@@ -916,25 +987,12 @@ func (t *SimpleChaincode) buy_item_by_money(stub shim.ChaincodeStubInterface, v 
 //   and token can be converted to cashback, cashback should be like $ or something that can substract the item price
 //=================================================================================================================================
 func (t *SimpleChaincode) buy_item_by_wallet(stub shim.ChaincodeStubInterface, v Customer, i Item) ([]byte, error) {
-
-  if v.Status == true {
-    if v.Cashback > i.Price {
-      v.Cashback = v.Cashback - i.Price
-      logger.Infof("Customer %v spent %d, balance is %d", v.CustomerID, i.Price, v.Cashback)
-    } else {
-      logger.Infof("buy_item_by_wallet: Not enough balance")
-      return nil, errors.New(fmt.Sprintf(" Not enough balance."))
-    }
-  } else { // Otherwise if there is an error
-    logger.Infof("buy_item_by_wallet: Customer Not Active")
-    return nil, errors.New(fmt.Sprintf("Customer Not Active."))
+  if v.Cashback < i.Price {
+    logger.Infof("[buy_item_by_wallet]: Not enough balance")
+    return nil, errors.New(fmt.Sprintf(" Not enough balance."))
   }
-  _, err := t.save_changes(stub, v) // Write new state
-  if err != nil {
-    logger.Infof("buy_item_by_wallet: Error saving changes: %s", err)
-    return nil, errors.New("Error saving changes")
-  }
-  return nil, nil // We are Done
+  logger.Infof("[buy_item_by_wallet]: Customer %v spent %d", v.CustomerID, i.Price)
+  return t.update_cashback(stub, v, v.Cashback-i.Price)
 }
 
 //=================================================================================================================================
@@ -942,11 +1000,12 @@ func (t *SimpleChaincode) buy_item_by_wallet(stub shim.ChaincodeStubInterface, v
 //=================================================================================================================================
 func main() {
   err := shim.Start(&SimpleChaincode{
-    CashbackDecimal: 100,
-    TokenDecimal:    1000000000,
-    TokenSymbol:     "HTN",
-    TokenName:       "Hottab Token",
-    TotalSupply:     100000000,
+    CashbackDecimal:   100,
+    TokenDecimal:      1000000000,
+    TokenSymbol:       "HTN",
+    TokenName:         "Hottab Token",
+    TotalSupply:       100000000,
+    CirculatingSupply: 0,
   })
   if err != nil {
     logger.Infof("Error starting Chaincode: %s", err)
