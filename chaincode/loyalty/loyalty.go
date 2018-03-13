@@ -16,7 +16,7 @@ import (
   "github.com/hyperledger/fabric/protos/peer"
   "regexp"
   "strconv"
-  // "strings"
+  "time"
 )
 
 // using logger so that logs only appear if the ChaincodeLogger LoggingLevel is set to
@@ -366,6 +366,7 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) peer.Response
 //==============================================================================================================================
 //  Invoke - Called on chaincode invoke. Takes a function name passed and calls that function. Converts some
 //      initial arguments passed to other things for use in the called function e.g. name -> ecert
+//  Must check the number of arguments carefully to prevent unwanted messages
 //==============================================================================================================================
 func (t *SimpleChaincode) invoke(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
 
@@ -373,34 +374,61 @@ func (t *SimpleChaincode) invoke(stub shim.ChaincodeStubInterface, function stri
   switch function {
 
   case "get_customer_details":
+    if len(args) != 1 {
+      return nil, errors.New("Incorrect number of arguments. Expecting 1")
+    }
     return t.get_customer_details(stub, args[0])
 
   case "get_pos_details":
+    if len(args) != 1 {
+      return nil, errors.New("Incorrect number of arguments. Expecting 1")
+    }
     return t.get_pos_details(stub, args[0])
 
   case "get_item_details":
+    if len(args) != 1 {
+      return nil, errors.New("Incorrect number of arguments. Expecting 1")
+    }
     return t.get_item_details(stub, args[0])
 
   case "check_unique_customer":
+    if len(args) != 1 {
+      return nil, errors.New("Incorrect number of arguments. Expecting 1")
+    }
     return t.check_unique_customer(stub, args[0])
 
   case "get_customers":
+    if len(args) > 2 {
+      return nil, errors.New("Incorrect number of arguments. Expecting <= 2")
+    }
     return t.get_customers(stub, args...)
 
   case "ping":
     return t.ping(stub)
 
   case "create_customer":
+    if len(args) != 1 {
+      return nil, errors.New("Incorrect number of arguments. Expecting 1")
+    }
     return t.create_customer(stub, args[0])
 
   case "create_pos":
+    if len(args) != 2 {
+      return nil, errors.New("Incorrect number of arguments. Expecting 2")
+    }
     return t.create_pos(stub, args[0], args[1])
 
   case "create_item":
+    if len(args) != 1 {
+      return nil, errors.New("Incorrect number of arguments. Expecting 1")
+    }
     return t.create_item(stub, args[0])
 
   // other updates: pos, item
   case "update_item_name", "update_price", "update_pos_id":
+    if len(args) != 2 {
+      return nil, errors.New("Incorrect number of arguments. Expecting 2")
+    }
     item, err := t.retrieve_item(stub, args[0])
     // check error first
     if err != nil {
@@ -416,6 +444,9 @@ func (t *SimpleChaincode) invoke(stub shim.ChaincodeStubInterface, function stri
     }
 
   case "update_pos_name", "update_percentage":
+    if len(args) != 2 {
+      return nil, errors.New("Incorrect number of arguments. Expecting 2")
+    }
     pos, err := t.retrieve_pos(stub, args[0])
     // check error first
     if err != nil {
@@ -428,8 +459,20 @@ func (t *SimpleChaincode) invoke(stub shim.ChaincodeStubInterface, function stri
       return t.update_percentage(stub, pos, args[1])
     }
 
+  case "get_market_info":
+    return t.get_market_info(stub)
+
+  case "get_history":
+    if len(args) != 3 {
+      return nil, errors.New("Incorrect number of arguments. Expecting 3")
+    }
+    return t.get_history(stub, args[0], args[1], args[2])
+
   // process for existing customer
   default:
+    if len(args) != 2 {
+      return nil, errors.New("Incorrect number of arguments. Expecting 2")
+    }
     v, err := t.retrieve_customer(stub, args[0])
 
     if err != nil {
@@ -898,6 +941,95 @@ func (t *SimpleChaincode) check_unique_customer(stub shim.ChaincodeStubInterface
 }
 
 //=================================================================================================================================
+//   get_market_info
+//=================================================================================================================================
+func (t *SimpleChaincode) get_market_info(stub shim.ChaincodeStubInterface) ([]byte, error) {
+  return []byte(fmt.Sprintf(
+    `{"CashbackDecimal":%d, "TokenDecimal":%d, "TokenSymbol":"%s", "TokenName":"%s", "TotalSupply":%d, "CirculatingSupply":%d}`,
+    t.CashbackDecimal, t.TokenDecimal, t.TokenSymbol, t.TokenName, t.TotalSupply, t.CirculatingSupply)), nil
+}
+
+//=================================================================================================================================
+//   get_history
+//=================================================================================================================================
+func (t *SimpleChaincode) get_history(stub shim.ChaincodeStubInterface, object_type string, id string, limit string) ([]byte, error) {
+
+  loop, err := strconv.Atoi(limit)
+  if err != nil {
+    return nil, errors.New("get_history: Expecting integer value for limit")
+  }
+
+  var stateKey string
+  if object_type == "customer" {
+    stateKey = CUSTOMER_PREFIX + id
+  } else if object_type == "pos" {
+    stateKey = POS_PREFIX + id
+  } else if object_type == "item" {
+    stateKey = ITEM_PREFIX + id
+  } else {
+    return nil, errors.New(fmt.Sprintf("Unknow object_type: %s", object_type))
+  }
+
+  logger.Infof("[get_history]: get history for key %s\n", stateKey)
+
+  resultsIterator, err := stub.GetHistoryForKey(stateKey)
+  if err != nil {
+    return nil, err
+  }
+  // close after return
+  defer resultsIterator.Close()
+
+  // buffer is a JSON array containing historic values for the current key
+  var buffer bytes.Buffer
+  buffer.WriteString("[")
+  bArrayMemberAlreadyWritten := false
+  for resultsIterator.HasNext() {
+    response, err := resultsIterator.Next()
+    if err != nil {
+      return nil, err
+    }
+    // Add a comma before array members, suppress it for the first array member
+    if bArrayMemberAlreadyWritten == true {
+      buffer.WriteString(",")
+    }
+    buffer.WriteString("{\"TxId\":")
+    buffer.WriteString("\"")
+    buffer.WriteString(response.TxId)
+    buffer.WriteString("\"")
+
+    buffer.WriteString(", \"Value\":")
+    // if it was a delete operation on given key, then we need to set the
+    //corresponding value null. Else, we will write the response.Value
+    //as-is (as the Value itself a JSON object)
+    if response.IsDelete {
+      buffer.WriteString("null")
+    } else {
+      buffer.Write(response.Value)
+    }
+
+    buffer.WriteString(", \"Timestamp\":")
+    buffer.WriteString("\"")
+    buffer.WriteString(time.Unix(response.Timestamp.Seconds, int64(response.Timestamp.Nanos)).String())
+    buffer.WriteString("\"")
+
+    buffer.WriteString(", \"IsDelete\":")
+    buffer.WriteString("\"")
+    buffer.WriteString(strconv.FormatBool(response.IsDelete))
+    buffer.WriteString("\"")
+
+    buffer.WriteString("}")
+    bArrayMemberAlreadyWritten = true
+    loop--
+    if loop == 0 {
+      break
+    }
+  }
+  buffer.WriteString("]")
+
+  return buffer.Bytes(), nil
+}
+
+//=================================================================================================================================
 //   Transactions
 //=================================================================================================================================
 
@@ -918,7 +1050,7 @@ func (t *SimpleChaincode) reward_token(stub shim.ChaincodeStubInterface, v Custo
 
   t.CirculatingSupply = t.CirculatingSupply + uint64(tokenAmount)
   v.Token = v.Token + uint(tokenAmount)
-  logger.Infof("[reward_token]: Customer %v Token = %d, CirculatingSupply = %d", v.Token, t.CirculatingSupply)
+  logger.Infof("[reward_token]: Customer %v Token = %d, CirculatingSupply = %d, TotalSupply = %d", v.CustomerID, v.Token, t.CirculatingSupply, t.TotalSupply)
   _, err = t.save_changes(stub, v) // Write new state
   if err != nil {
     logger.Infof("[reward_token]: Error saving changes: %s", err)
@@ -946,7 +1078,7 @@ func (t *SimpleChaincode) burn_token(stub shim.ChaincodeStubInterface, v Custome
   // we just limit circualating supply to not exceed the total supply, but we can not manage stellar backing wallets.
   t.CirculatingSupply = t.CirculatingSupply - uint64(tokenAmount)
   v.Token = v.Token - uint(tokenAmount)
-  logger.Infof("[burn_token]: Customer %v Token = %d, CirculatingSupply = %d", v.Token, t.CirculatingSupply)
+  logger.Infof("[burn_token]: Customer %v Token = %d, CirculatingSupply = %d, TotalSupply = %d", v.CustomerID, v.Token, t.CirculatingSupply, t.TotalSupply)
   _, err = t.save_changes(stub, v) // Write new state
   if err != nil {
     logger.Infof("[burn_token]: Error saving changes: %s", err)

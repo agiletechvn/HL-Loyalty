@@ -192,6 +192,31 @@ func Test_Buying(t *testing.T) {
 
 func Test_Transaction(t *testing.T) {
   stub := createStub(t, "loyalty")
+  checkInit(t, stub, []string{"123456789", "Ha Noi"})
+  checkInvoke(t, stub, []string{"update_percentage", "123456789", "10"})
+
+  checkInvoke(t, stub, []string{"create_customer", "123456789"})
+  checkInvoke(t, stub, []string{"update_customer_name", "123456789", "Tu Pham Thanh"})
+
+  checkInvoke(t, stub, []string{"create_item", "123456789"})
+  checkInvoke(t, stub, []string{"update_item_name", "123456789", "Donut"})
+  checkInvoke(t, stub, []string{"update_pos_id", "123456789", "123456789"})
+  checkInvoke(t, stub, []string{"update_price", "123456789", "100"})
+  checkInvoke(t, stub, []string{"get_item_details", "123456789"}, `{"itemId":"123456789","posId":"123456789","itemName":"Donut","price":100}`)
+
+  checkInvoke(t, stub, []string{"buy_item_by_money", "123456789", "123456789"})
+  checkInvoke(t, stub, []string{"reward_cashback", "123456789", "150"})
+  checkInvoke(t, stub, []string{"buy_item_by_wallet", "123456789", "123456789"})
+  checkInvoke(t, stub, []string{"get_customer_details", "123456789"}, `{"customerID":"123456789","name":"Tu Pham Thanh","address":"UNDEFINED","cashback":60,"token":0,"email":"UNDEFINED","phone":"UNDEFINED","status":true}`)
+
+  // token method
+  checkInvoke(t, stub, []string{"reward_token", "123456789", "2000"})
+  checkInvoke(t, stub, []string{"get_customer_details", "123456789"}, `{"customerID":"123456789","name":"Tu Pham Thanh","address":"UNDEFINED","cashback":60,"token":2000,"email":"UNDEFINED","phone":"UNDEFINED","status":true}`)
+  checkInvoke(t, stub, []string{"burn_token", "123456789", "1000"})
+  checkInvoke(t, stub, []string{"get_customer_details", "123456789"}, `{"customerID":"123456789","name":"Tu Pham Thanh","address":"UNDEFINED","cashback":60,"token":1000,"email":"UNDEFINED","phone":"UNDEFINED","status":true}`)
+
+  checkInvoke(t, stub, []string{"get_market_info"}, `{"CashbackDecimal":100, "TokenDecimal":1000000000, "TokenSymbol":"HTN", "TokenName":"Hottab Token", "TotalSupply":100000000, "CirculatingSupply":1000}`)
+
 }
 
 // func Test_TokenExchange(t *testing.T) {
