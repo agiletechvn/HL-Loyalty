@@ -78,6 +78,7 @@ type Customer struct {
 //==============================================================================================================================
 //  Point of Sales - Defines the structure that holds all the PoS for that have been created.
 //        Used as an index when querying all vehicles.
+//  this class is optional, only token and cashback is the most important
 //==============================================================================================================================
 
 type PoS struct {
@@ -89,6 +90,7 @@ type PoS struct {
 
 //==============================================================================================================================
 //  Items - Items brought.
+//  this class is optional, only token and cashback is the most important
 //==============================================================================================================================
 
 type Item struct {
@@ -96,6 +98,58 @@ type Item struct {
   PoSID    string `json:"posId"`
   ItemName string `json:"itemName"`
   Price    uint   `json:"price"`
+}
+
+//==============================================================================================================================
+//   read_cert_attribute - Retrieves the attribute name of the certificate.
+//          Returns the attribute as a string.
+//==============================================================================================================================
+
+func read_cert_attribute(stub shim.ChaincodeStubInterface, name string) (string, error) {
+  val, ok, err := cid.GetAttributeValue(stub, name)
+
+  if err != nil {
+    return "", err
+  }
+  if !ok {
+    return "", errors.New("The attribute is not found")
+  }
+  return val, nil
+}
+
+//==============================================================================================================================
+//   check_role - Takes an ecert as a string, decodes it to remove html encoding then parses it and checks the
+//              certificates common name. The role is stored as part of the common name.
+//==============================================================================================================================
+
+func check_role(stub shim.ChaincodeStubInterface) (string, error) {
+  role, err := read_cert_attribute(stub, "role")
+  if err != nil {
+    return "", errors.New("Couldn't get attribute 'role'. Error: " + err.Error())
+  }
+  return role, nil
+
+}
+
+//==============================================================================================================================
+//   get_caller_data - Calls the get_ecert and check_role functions and returns the ecert and role for the
+//           name passed.
+//==============================================================================================================================
+
+func get_caller_data(stub shim.ChaincodeStubInterface) (string, string, error) {
+
+  mspID, _ := cid.GetMSPID(stub)
+
+  role, err := check_role(stub)
+
+  if err != nil {
+    logger.Errorf("Couldn't get caller data, got error: %v", err)
+    return "", "", err
+  }
+
+  logger.Infof("msp: %s, role: %s", mspID, role)
+
+  return mspID, role, nil
 }
 
 //==============================================================================================================================
@@ -114,58 +168,6 @@ func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) peer.Response {
   }
 
   return shim.Success(nil)
-}
-
-//==============================================================================================================================
-//   read_cert_attribute - Retrieves the attribute name of the certificate.
-//          Returns the attribute as a string.
-//==============================================================================================================================
-
-func (t *SimpleChaincode) read_cert_attribute(stub shim.ChaincodeStubInterface, name string) (string, error) {
-  val, ok, err := cid.GetAttributeValue(stub, name)
-
-  if err != nil {
-    return "", err
-  }
-  if !ok {
-    return "", errors.New("The attribute is not found")
-  }
-  return val, nil
-}
-
-//==============================================================================================================================
-//   check_role - Takes an ecert as a string, decodes it to remove html encoding then parses it and checks the
-//              certificates common name. The role is stored as part of the common name.
-//==============================================================================================================================
-
-func (t *SimpleChaincode) check_role(stub shim.ChaincodeStubInterface) (string, error) {
-  role, err := t.read_cert_attribute(stub, "role")
-  if err != nil {
-    return "", errors.New("Couldn't get attribute 'role'. Error: " + err.Error())
-  }
-  return role, nil
-
-}
-
-//==============================================================================================================================
-//   get_caller_data - Calls the get_ecert and check_role functions and returns the ecert and role for the
-//           name passed.
-//==============================================================================================================================
-
-func (t *SimpleChaincode) get_caller_data(stub shim.ChaincodeStubInterface) (string, string, error) {
-
-  mspID, _ := cid.GetMSPID(stub)
-
-  role, err := t.check_role(stub)
-
-  if err != nil {
-    logger.Errorf("Couldn't get caller data, got error: %v", err)
-    return "", "", err
-  }
-
-  logger.Infof("msp: %s, role: %s", mspID, role)
-
-  return mspID, role, nil
 }
 
 //==============================================================================================================================
@@ -534,7 +536,7 @@ func (t *SimpleChaincode) ping(stub shim.ChaincodeStubInterface) ([]byte, error)
 //=================================================================================================================================
 func (t *SimpleChaincode) create_customer(stub shim.ChaincodeStubInterface, customerID string) ([]byte, error) {
 
-  caller, role, _ := t.get_caller_data(stub)
+  caller, role, _ := get_caller_data(stub)
   if role != "member" {
     return nil, errors.New(fmt.Sprintf("Unauthorized: %v", caller))
   }
@@ -597,7 +599,7 @@ func (t *SimpleChaincode) update_customer_name(stub shim.ChaincodeStubInterface,
 //=================================================================================================================================
 func (t *SimpleChaincode) update_address(stub shim.ChaincodeStubInterface, v Customer, new_value string) ([]byte, error) {
 
-  caller, role, _ := t.get_caller_data(stub)
+  caller, role, _ := get_caller_data(stub)
   if role != "member" {
     return nil, errors.New(fmt.Sprintf("Unauthorized: %v", caller))
   }
@@ -621,7 +623,7 @@ func (t *SimpleChaincode) update_address(stub shim.ChaincodeStubInterface, v Cus
 //=================================================================================================================================
 func (t *SimpleChaincode) update_cashback(stub shim.ChaincodeStubInterface, v Customer, new_value uint) ([]byte, error) {
 
-  caller, role, _ := t.get_caller_data(stub)
+  caller, role, _ := get_caller_data(stub)
   if role != "member" {
     return nil, errors.New(fmt.Sprintf("Unauthorized: %v", caller))
   }
@@ -647,7 +649,7 @@ func (t *SimpleChaincode) update_cashback(stub shim.ChaincodeStubInterface, v Cu
 //=================================================================================================================================
 func (t *SimpleChaincode) update_email(stub shim.ChaincodeStubInterface, v Customer, new_value string) ([]byte, error) {
 
-  caller, role, _ := t.get_caller_data(stub)
+  caller, role, _ := get_caller_data(stub)
   if role != "member" {
     return nil, errors.New(fmt.Sprintf("Unauthorized: %v", caller))
   }
@@ -671,7 +673,7 @@ func (t *SimpleChaincode) update_email(stub shim.ChaincodeStubInterface, v Custo
 //=================================================================================================================================
 func (t *SimpleChaincode) create_pos(stub shim.ChaincodeStubInterface, posID string, posName string) ([]byte, error) {
 
-  caller, role, _ := t.get_caller_data(stub)
+  caller, role, _ := get_caller_data(stub)
   if role != "member" {
     return nil, errors.New(fmt.Sprintf("Unauthorized: %v", caller))
   }
@@ -711,7 +713,7 @@ func (t *SimpleChaincode) create_pos(stub shim.ChaincodeStubInterface, posID str
 //=================================================================================================================================
 func (t *SimpleChaincode) update_pos_name(stub shim.ChaincodeStubInterface, v PoS, new_value string) ([]byte, error) {
 
-  caller, role, _ := t.get_caller_data(stub)
+  caller, role, _ := get_caller_data(stub)
   if role != "member" {
     return nil, errors.New(fmt.Sprintf("Unauthorized: %v", caller))
   }
@@ -735,7 +737,7 @@ func (t *SimpleChaincode) update_pos_name(stub shim.ChaincodeStubInterface, v Po
 //=================================================================================================================================
 func (t *SimpleChaincode) update_percentage(stub shim.ChaincodeStubInterface, v PoS, percentage string) ([]byte, error) {
 
-  caller, role, _ := t.get_caller_data(stub)
+  caller, role, _ := get_caller_data(stub)
   if role != "member" {
     return nil, errors.New(fmt.Sprintf("Unauthorized: %v", caller))
   }
@@ -764,7 +766,7 @@ func (t *SimpleChaincode) update_percentage(stub shim.ChaincodeStubInterface, v 
 //=================================================================================================================================
 func (t *SimpleChaincode) create_item(stub shim.ChaincodeStubInterface, itemID string) ([]byte, error) {
 
-  caller, role, _ := t.get_caller_data(stub)
+  caller, role, _ := get_caller_data(stub)
   if role != "member" {
     return nil, errors.New(fmt.Sprintf("Unauthorized: %v", caller))
   }
@@ -805,7 +807,7 @@ func (t *SimpleChaincode) create_item(stub shim.ChaincodeStubInterface, itemID s
 //=================================================================================================================================
 func (t *SimpleChaincode) update_item_name(stub shim.ChaincodeStubInterface, v Item, new_value string) ([]byte, error) {
 
-  caller, role, _ := t.get_caller_data(stub)
+  caller, role, _ := get_caller_data(stub)
   if role != "member" {
     return nil, errors.New(fmt.Sprintf("Unauthorized: %v", caller))
   }
@@ -825,7 +827,7 @@ func (t *SimpleChaincode) update_item_name(stub shim.ChaincodeStubInterface, v I
 //=================================================================================================================================
 func (t *SimpleChaincode) update_pos_id(stub shim.ChaincodeStubInterface, v Item, new_value string) ([]byte, error) {
 
-  caller, role, _ := t.get_caller_data(stub)
+  caller, role, _ := get_caller_data(stub)
   if role != "member" {
     return nil, errors.New(fmt.Sprintf("Unauthorized: %v", caller))
   }
@@ -845,7 +847,7 @@ func (t *SimpleChaincode) update_pos_id(stub shim.ChaincodeStubInterface, v Item
 //=================================================================================================================================
 func (t *SimpleChaincode) update_price(stub shim.ChaincodeStubInterface, v Item, price string) ([]byte, error) {
 
-  caller, role, _ := t.get_caller_data(stub)
+  caller, role, _ := get_caller_data(stub)
   if role != "member" {
     return nil, errors.New(fmt.Sprintf("Unauthorized: %v", caller))
   }

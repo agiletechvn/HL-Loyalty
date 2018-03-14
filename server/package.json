@@ -1,0 +1,31 @@
+{
+    "name": "Fabric-tuna-app",
+    "version": "1.0.0",
+    "description": "Hyperledger Fabric MOOC Sample Application",
+    "main": "index.js",
+    "scripts": {
+        "start": "nodemon index.js",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "dependencies": {
+        "angular": "^1.4.3",
+        "body-parser": "latest",
+        "cors": "^2.8.4",
+        "ejs": "latest",
+        "express": "latest",
+        "fabric-ca-client": "^1.0.5",
+        "fabric-client": "^1.0.5",
+        "grpc": "^1.6.0",
+        "x509": "^0.3.3"
+    },
+    "license": "Apache-2.0",
+    "keywords": [
+        "Hyperledger",
+        "Fabric",
+        "Oceans",
+        "Tuna",
+        "Fishing",
+        "Sample",
+        "Application"
+    ]
+}
