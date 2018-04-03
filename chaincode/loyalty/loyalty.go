@@ -909,22 +909,22 @@ func (t *SimpleChaincode) get_customers(stub shim.ChaincodeStubInterface, params
   defer resultsIterator.Close()
 
   var buffer bytes.Buffer
-
+  bArrayMemberAlreadyWritten := false
+  buffer.WriteString("[")
   for resultsIterator.HasNext() {
     queryResponse, err := resultsIterator.Next()
     if err != nil {
       return nil, err
     }
     // Add a comma before array members, suppress it for the first array member
-    if buffer.Len() == 0 {
-      buffer.WriteString("[")
-    } else {
+    if bArrayMemberAlreadyWritten == true {
       buffer.WriteString(",")
     }
     // Record is a JSON object in bytes, so we write as-is
     buffer.Write(queryResponse.Value)
-
+    bArrayMemberAlreadyWritten = true
   }
+
   buffer.WriteString("]")
 
   return buffer.Bytes(), nil

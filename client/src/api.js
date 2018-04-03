@@ -3,7 +3,7 @@ const API_BASE = `${window.location.protocol}//${
   window.location.hostname
 }:8000`;
 const DEFAULT_CHAINCODE = "mycc";
-const DEFAULT_USER = "user1";
+const DEFAULT_USER = "admin";
 
 export const rejectErrors = res => {
   const { status } = res;
