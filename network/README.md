@@ -17,6 +17,8 @@ on your system, run `teardown.sh`.
 docker exec -it dockercli bash
 peer chaincode install -n mycc -v 1.0 -p github.com/chaincode/loyalty
 peer chaincode instantiate -C mychannel -n mycc -v 1.0 -c '{"Args":[]}'
+# test query
+peer chaincode query -C mychannel -n mycc -c '{"Args":["ping"]}'
 ```
 
 This code is written by the Hyperledger Fabric community. Original source code can be found here: (https://github.com/hyperledger/fabric-samples).
