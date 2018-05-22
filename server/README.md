@@ -5,17 +5,26 @@
 Start network
 
 ```sh
+# start network
 ./startFabric.sh
 # start api
 yarn start
 ```
 
+Register new user
+
+```sh
+yarn enroll admin
+yarn register user1
+yarn enroll user1
+```
+
 ## **Terminal 1 - Build & start the chaincode**
 
 ```sh
-cd ./chaincode/loyalty
+cd ./chaincode
 # start chaincode
-nodemon --exec "./startChaincode.sh" loyalty.go
+yarn start 1.0
 # after chaincode is changed, you can use combination of ctrl+c and start again
 ```
 

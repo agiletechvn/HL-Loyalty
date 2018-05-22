@@ -1,0 +1,14 @@
+{
+  "name": "loyalty-network",
+  "version": "0.1.0",
+  "scripts": {
+    "start": "./start.sh",
+    "stop": "./stop.sh",
+    "teardown": "./teardown.sh"
+  },
+  "engines": {
+    "node": ">=8.0.0",
+    "npm": ">=2.15.9"
+  },
+  "license": "Apache-2.0"
+}

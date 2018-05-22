@@ -6,17 +6,17 @@ channel named "mychannel".
 
 To regenerate this material, simply run `generate.sh`.
 
-To start the network, run `start.sh`.
-To stop it, run `stop.sh`
+To start the network, run `start.sh` or `yarn start`.
+To stop it, run `stop.sh` or `yarn stop`
 To completely remove all incriminating evidence of the network
-on your system, run `teardown.sh`.
+on your system, run `teardown.sh` or `yarn teardown`.
 
 ## Install chaincode
 
 ```bash
 docker exec -it dockercli bash
 peer chaincode install -n mycc -v 1.0 -p github.com/chaincode/loyalty
-peer chaincode instantiate -C mychannel -n mycc -v 1.0 -c '{"Args":[]}'
+peer chaincode instantiate -C mychannel -o orderer.example.com:7050 -n mycc -v 1.0 -c '{"Args":[]}'
 # test query
 peer chaincode query -C mychannel -n mycc -c '{"Args":["ping"]}'
 ```
