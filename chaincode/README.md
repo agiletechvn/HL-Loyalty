@@ -13,8 +13,8 @@ glide install
 ```sh
 cd ./chaincode/loyalty
 ln -s $PWD $GOPATH/src/
-cd $PWD $GOPATH/src/loyalty
-go test
+cd $GOPATH/src/loyalty
+CGO_LDFLAGS_ALLOW='-Wl,--no-as-needed' go test
 ```
 
 ## **Start chaincode**

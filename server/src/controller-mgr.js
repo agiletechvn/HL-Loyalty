@@ -1,10 +1,10 @@
-var defaultConfig = require("./config");
-const controller_API = require("./controller");
+var defaultConfig = require('./config');
+const controller_API = require('./controller');
 
 const config = Object.assign({}, defaultConfig, {
-  anotherUser: "admin",
-  anotherUserSecret: "adminpw",
-  user: "admin",
+  anotherUser: 'admin',
+  anotherUserSecret: 'adminpw',
+  user: 'admin',
   MSP: defaultConfig.mspID
 });
 
@@ -15,11 +15,13 @@ const controllerMap = new Map();
 // and these instances belong to the current organization
 module.exports = {
   getInstance(user, channelName) {
-    const key = user + "#" + channelName;
+    const key = user + '#' + channelName;
     if (!controllerMap.has(key)) {
       controllerMap.set(
         key,
-        controller_API(Object.assign({}, config, { channelName: channelName }))
+        controller_API(
+          Object.assign({}, config, { user: user, channelName: channelName })
+        )
       );
     }
     return controllerMap.get(key);
