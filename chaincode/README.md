@@ -13,7 +13,7 @@ glide install
 ```sh
 cd ./chaincode/loyalty
 ln -s $PWD $GOPATH/src/
-cd $PWD $GOPATH/src/loyalty
+cd $GOPATH/src/loyalty
 go test
 ```
 
@@ -21,5 +21,6 @@ go test
 
 ```sh
 # cd ./chaincode/loyalty
-nodemon --exec "./startChaincode.sh" loyalty.go
+# nodemon --exec "./startChaincode.sh" loyalty.go
+yarn start 1.0
 ```

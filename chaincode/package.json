@@ -1,0 +1,12 @@
+{
+  "name": "loyalty-chaincode",
+  "version": "0.1.0",
+  "scripts": {
+    "start": "./start.sh"
+  },
+  "engines": {
+    "node": ">=8.0.0",
+    "npm": ">=2.15.9"
+  },
+  "license": "Apache-2.0"
+}
