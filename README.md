@@ -1,4 +1,4 @@
-## Hyperledger Fabric Sample Application
+## Hyperledger Fabric Loyalty System
 
 ## **Install the requirements**
 
