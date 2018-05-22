@@ -21,5 +21,6 @@ CGO_LDFLAGS_ALLOW='-Wl,--no-as-needed' go test
 
 ```sh
 # cd ./chaincode/loyalty
-nodemon --exec "./startChaincode.sh" loyalty.go
+# nodemon --exec "./startChaincode.sh" loyalty.go
+yarn start 1.0
 ```
