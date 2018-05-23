@@ -10,6 +10,7 @@ To start the network, run `start.sh` or `yarn start`.
 To stop it, run `stop.sh` or `yarn stop`
 To completely remove all incriminating evidence of the network
 on your system, run `teardown.sh` or `yarn teardown`.
+To reset the network, run `yarn reset`.
 
 ## Install chaincode
 

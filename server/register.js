@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 /*
 * SPDX-License-Identifier: Apache-2.0
 */
@@ -10,21 +10,21 @@ This code is based on code written by the Hyperledger Fabric community.
 
  */
 
-var Fabric_Client = require("fabric-client");
-var Fabric_CA_Client = require("fabric-ca-client");
-var path = require("path");
-var util = require("util");
-var os = require("os");
-const fs = require("fs");
+var Fabric_Client = require('fabric-client');
+var Fabric_CA_Client = require('fabric-ca-client');
+var path = require('path');
+var util = require('util');
+var os = require('os');
+const fs = require('fs');
 //
 var fabric_client = new Fabric_Client();
 var fabric_ca_client = null;
 var admin_user = null;
 var member_user = null;
-var store_path = path.join(os.homedir(), ".hfc-key-store");
-console.log(" Store path:" + store_path);
-const username = process.argv[2] || "user1";
-const password = process.argv[3] || "adminpw";
+var store_path = path.join(__dirname, 'hfc-key-store');
+console.log(' Store path:' + store_path);
+const username = process.argv[2] || 'user1';
+const password = process.argv[3] || 'adminpw';
 // create the key value store as defined in the fabric-client/config/default.json 'key-value-store' setting
 Fabric_Client.newDefaultKeyValueStore({
   path: store_path
@@ -44,21 +44,21 @@ Fabric_Client.newDefaultKeyValueStore({
     };
     // be sure to change the http to https when the CA is running TLS enabled
     fabric_ca_client = new Fabric_CA_Client(
-      "http://localhost:7054",
-      null,
-      "",
+      'http://localhost:7054',
+      tlsOptions,
+      'ca.example.com',
       crypto_suite
     );
 
     // first check to see if the admin is already enrolled
-    return fabric_client.getUserContext("admin", true);
+    return fabric_client.getUserContext('admin', true);
   })
   .then(user_from_store => {
     if (user_from_store && user_from_store.isEnrolled()) {
-      console.log("Successfully loaded admin from persistence");
+      console.log('Successfully loaded admin from persistence');
       admin_user = user_from_store;
     } else {
-      throw new Error("Failed to get admin.... run registerAdmin.js");
+      throw new Error('Failed to get admin.... run registerAdmin.js');
     }
 
     // at this point we should have the admin user
@@ -67,27 +67,27 @@ Fabric_Client.newDefaultKeyValueStore({
       {
         enrollmentID: username,
         enrollmentSecret: password,
-        affiliation: "org1.department1",
-        attrs: [{ name: "role", value: "member", ecert: true }]
+        affiliation: 'org1.department1',
+        attrs: [{ name: 'role', value: 'member', ecert: true }]
       },
       admin_user
     );
   })
   .then(secret => {
     // next we need to enroll the user with CA server
-    console.log("Successfully registered " + username + " - secret:" + secret);
+    console.log('Successfully registered ' + username + ' - secret:' + secret);
 
     return fabric_ca_client.enroll({
       enrollmentID: username,
       enrollmentSecret: secret,
-      attr_reqs: [{ name: "role", optional: false }]
+      attr_reqs: [{ name: 'role', optional: false }]
     });
   })
   .then(enrollment => {
     console.log('Successfully enrolled member user "' + username + '" ');
     return fabric_client.createUser({
       username: username,
-      mspid: "Org1MSP",
+      mspid: 'Org1MSP',
       cryptoContent: {
         privateKeyPEM: enrollment.key.toBytes(),
         signedCertPEM: enrollment.certificate
@@ -102,15 +102,15 @@ Fabric_Client.newDefaultKeyValueStore({
   .then(() => {
     console.log(
       username +
-        " was successfully registered and enrolled and is ready to intreact with the fabric network"
+        ' was successfully registered and enrolled and is ready to intreact with the fabric network'
     );
   })
   .catch(err => {
-    console.error("Failed to register: " + err);
-    if (err.toString().indexOf("Authorization") > -1) {
+    console.error('Failed to register: ' + err);
+    if (err.toString().indexOf('Authorization') > -1) {
       console.error(
-        "Authorization failures may be caused by having admin credentials from a previous CA instance.\n" +
-          "Try again after deleting the contents of the store directory " +
+        'Authorization failures may be caused by having admin credentials from a previous CA instance.\n' +
+          'Try again after deleting the contents of the store directory ' +
           store_path
       );
     }

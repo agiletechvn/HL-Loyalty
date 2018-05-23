@@ -2,9 +2,11 @@
   "name": "loyalty-network",
   "version": "0.1.0",
   "scripts": {
+    "generate": "./generate.sh",
     "start": "./start.sh",
     "stop": "./stop.sh",
-    "teardown": "./teardown.sh"
+    "teardown": "./teardown.sh",
+    "reset": "yarn teardown && yarn generate"
   },
   "engines": {
     "node": ">=8.0.0",
