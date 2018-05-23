@@ -38,11 +38,11 @@ We'll leverage the CLI container to drive these calls.
 
 ```sh
 # upgrade chaincode
-docker exec dockercli peer chaincode install -n mycc -v 1 -p github.com/chaincode/loyalty
+docker exec cli peer chaincode install -n mycc -v 1 -p github.com/chaincode/loyalty
 # instantiate chaincode
-docker exec dockercli peer chaincode instantiate -o orderer.example.com:7050 -C mychannel -n mycc -v 1 -c '{"Args":[]}'
+docker exec cli peer chaincode instantiate -o orderer.example.com:7050 -C mychannel -n mycc -v 1 -c '{"Args":[]}'
 # -P "OR ('Org1MSP.member','Org2MSP.member')"
 
 # query chaincode
-docker exec dockercli peer chaincode query -n mycc -C mychannel -c '{"Args":["ping"]}'
+docker exec cli peer chaincode query -n mycc -C mychannel -c '{"Args":["ping"]}'
 ```

@@ -15,7 +15,7 @@ To reset the network, run `yarn reset`.
 ## Install chaincode
 
 ```bash
-docker exec -it dockercli bash
+docker exec -it cli bash
 peer chaincode install -n mycc -v 1.0 -p github.com/chaincode/loyalty
 peer chaincode instantiate -C mychannel -o orderer.example.com:7050 -n mycc -v 1.0 -c '{"Args":[]}'
 # test query

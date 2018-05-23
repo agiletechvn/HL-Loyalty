@@ -1,0 +1,13 @@
+{
+  "name": "admin",
+  "mspid": "Org1MSP",
+  "roles": null,
+  "affiliation": "",
+  "enrollmentSecret": "",
+  "enrollment": {
+    "signingIdentity": "d2dce5a0a6ed9e9db46ff18bba6caa18e21e4e08d5cdc70aaa1a543cee8dce7b",
+    "identity": {
+      "certificate": "-----BEGIN CERTIFICATE-----\r\nMIICWDCCAf+gAwIBAgIUJlfMLTkA5OCCNggRDFSCLOL5r3wwCgYIKoZIzj0EAwIw\r\nczELMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNh\r\nbiBGcmFuY2lzY28xGTAXBgNVBAoTEG9yZzEuZXhhbXBsZS5jb20xHDAaBgNVBAMT\r\nE2NhLm9yZzEuZXhhbXBsZS5jb20wHhcNMTgwNTIzMTYxODAwWhcNMTkwNTIzMTYy\r\nMzAwWjBdMQswCQYDVQQGEwJVUzEXMBUGA1UECBMOTm9ydGggQ2Fyb2xpbmExFDAS\r\nBgNVBAoTC0h5cGVybGVkZ2VyMQ8wDQYDVQQLEwZjbGllbnQxDjAMBgNVBAMTBWFk\r\nbWluMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEZ+4bVNijFTlxgOZNiBw01ZbZ\r\nlVKrf2TuVDOlFUtCkvCzAQgSi9nQkJiicGogIjSdOysDe1tmKDwQGDs9yTT8cKOB\r\nhjCBgzAOBgNVHQ8BAf8EBAMCB4AwDAYDVR0TAQH/BAIwADAdBgNVHQ4EFgQU5/yW\r\nRf7KY4xL3fpPpc0Ra4iQMcQwKwYDVR0jBCQwIoAgEbja/pZmzUKob+zVbcD8n7AT\r\nrJGPquEI2T7EZcZKNjMwFwYDVR0RBBAwDoIMNTBjZDE4YmZiMzFiMAoGCCqGSM49\r\nBAMCA0cAMEQCIHKgw1hDU6NJEjirqR150eu8tmW9cnmUXVwR361WZgydAiBwL9yq\r\nb/xIBDkZRUki7IHxmapPPUsPFYPey9JYJPEvfQ==\r\n-----END CERTIFICATE-----\r\n"
+    }
+  }
+}

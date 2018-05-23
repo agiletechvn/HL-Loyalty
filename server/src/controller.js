@@ -48,7 +48,7 @@ module.exports = function(config) {
   );
 
   const store_path =
-    process.env.KEY_STORE_PATH || path.join(__dirname, 'hfc-key-store');
+    process.env.KEY_STORE_PATH || path.join(__dirname, '../hfc-key-store');
 
   channel.addPeer(peer);
   channel.addOrderer(orderer);

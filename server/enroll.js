@@ -21,7 +21,7 @@ var fabric_client = new Fabric_Client();
 var fabric_ca_client = null;
 var admin_user = null;
 var member_user = null;
-var store_path = path.join(__dirname, 'hfc-key-store');
+var store_path = path.join(os.homedir(), '.hfc-key-store');
 console.log(' Store path:' + store_path);
 const username = process.argv[2] || 'admin';
 const password = process.argv[3] || 'adminpw';
@@ -44,7 +44,7 @@ Fabric_Client.newDefaultKeyValueStore({
     };
     // be sure to change the http to https when the CA is running TLS enabled
     fabric_ca_client = new Fabric_CA_Client(
-      'http://localhost:7054',
+      'http://127.0.0.1:7054',
       tlsOptions,
       'ca.example.com',
       crypto_suite
