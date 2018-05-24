@@ -1,3 +1,21 @@
+# See https://help.github.com/ignore-files/ for more about ignoring files.
+
+# dependencies
+**/node_modules
+
+# testing
+**/coverage
+
+# production
+**/build
+
+# misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
 vendor
 glide.lock
 # Emacs backup files
@@ -7,9 +25,8 @@ glide.lock
 # Vim file artifacts
 .*.sw*
 # installed platform-specific binaries
-/bin
+**/bin
 .DS_Store
 .project
 **/hfc-key-store
 # fabric sdk node modules
-node_modules
