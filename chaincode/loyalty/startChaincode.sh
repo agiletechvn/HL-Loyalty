@@ -1,8 +1,24 @@
 chaincodeID=$(ps -ax | awk '$0~/\.\/loyalty/{print $1}')
-version=${1:-"1.0"}
 if [[ ! -z $chaincodeID ]];then  
   kill $chaincodeID
 fi
+
+while getopts "a:v:" opt; do
+  case "$opt" in
+    a)  ADDRESS=$OPTARG
+    ;;
+    v)  VERSION=$OPTARG
+    ;;
+    *) 
+      echo "Unknown $opt"
+      exit 1
+    ;;
+  esac
+done
+
+: ${VERSION:=1.0}
+: ${ADDRESS:=localhost:7052}
+
 # sleep 1
-echo "go build -i && CORE_PEER_ADDRESS=localhost:7052 CORE_PEER_LOCALMSPID=Org1MSP CORE_VM_ENDPOINT=unix:///var/run/docker.sock CORE_CHAINCODE_ID_NAME=mycc:$1 ./loyalty"
-go build -i && CORE_PEER_ADDRESS=localhost:7052 CORE_PEER_LOCALMSPID=Org1MSP CORE_VM_ENDPOINT=unix:///var/run/docker.sock CORE_CHAINCODE_ID_NAME=mycc:$1 ./loyalty
+echo "go build -i && CORE_PEER_ADDRESS=$ADDRESS CORE_PEER_LOCALMSPID=Org1MSP CORE_VM_ENDPOINT=unix:///var/run/docker.sock CORE_CHAINCODE_ID_NAME=mycc:$VERSION ./loyalty"
+go build -i && CORE_PEER_ADDRESS=$ADDRESS CORE_PEER_LOCALMSPID=Org1MSP CORE_VM_ENDPOINT=unix:///var/run/docker.sock CORE_CHAINCODE_ID_NAME=mycc:$VERSION ./loyalty

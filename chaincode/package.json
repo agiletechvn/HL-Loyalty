@@ -2,7 +2,8 @@
   "name": "loyalty-chaincode",
   "version": "0.1.0",
   "scripts": {
-    "start": "./start.sh"
+    "start": "./start.sh localhost:7052",
+    "start-k8s": "./start.sh 192.168.99.100:30502"
   },
   "engines": {
     "node": ">=8.0.0",

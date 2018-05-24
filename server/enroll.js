@@ -14,7 +14,7 @@ var Fabric_CA_Client = require("fabric-ca-client");
 var path = require("path");
 var util = require("util");
 var os = require("os");
-
+var defaultConfig = require("./src/config");
 //
 var fabric_client = new Fabric_Client();
 var fabric_ca_client = null;
@@ -43,9 +43,10 @@ Fabric_Client.newDefaultKeyValueStore({
     };
     // be sure to change the http to https when the CA is running TLS enabled
     fabric_ca_client = new Fabric_CA_Client(
-      "http://localhost:7054",
+      (defaultConfig.tlsEnabled ? "https://" : "http://") +
+        defaultConfig.caServer,
       tlsOptions,
-      "ca.example.com",
+      null,
       crypto_suite
     );
 

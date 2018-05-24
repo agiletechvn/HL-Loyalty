@@ -9,7 +9,7 @@ module.exports = {
     (process.env.NAMESPACE
       ? "ca." + process.env.NAMESPACE + ":7054"
       : "localhost:7054"),
-  mspID: process.env.MSPID,
+  mspID: process.env.MSPID || "Org1MSP",
   anotherUserSecret: "adminpw",
   user: "admin",
   // convert to boolean

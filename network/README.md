@@ -15,19 +15,9 @@ To reset the network, run `yarn reset`.
 ## Install chaincode
 
 ```bash
-docker exec -it cli bash
-peer chaincode install -n mycc -v 1.0 -p github.com/chaincode/loyalty
-peer chaincode instantiate -C mychannel -o orderer.example.com:7050 -n mycc -v 1.0 -c '{"Args":[]}'
-# test query
-peer chaincode query -C mychannel -n mycc -c '{"Args":["ping"]}'
+yarn installChaincode 1.0
+# instantiate
+yarn instantiateChaincode 1.0
 ```
 
-This code is written by the Hyperledger Fabric community. Original source code can be found here: (https://github.com/hyperledger/fabric-samples).
 
-## Licenses
-
-Source code is licensed under the Apache License, Version 2.0 (the "License"). You may obtain a copy of the License at
-
-(http://www.apache.org/licenses/LICENSE-2.0)
-
-<a rel="license" href="http://creativecommons.org/licenses/by/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by/4.0/88x31.png" /></a><br />Documentation is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution 4.0 International License</a>

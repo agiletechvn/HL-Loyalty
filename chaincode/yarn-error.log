@@ -1,5 +1,5 @@
 Arguments: 
-  /Users/thanhtu/.nvm/versions/node/v9.2.0/bin/node /Users/thanhtu/.yarn/bin/yarn.js start 1.0
+  /Users/thanhtu/.nvm/versions/node/v9.2.0/bin/node /Users/thanhtu/.yarn/bin/yarn.js start-k8s -v 1.0
 
 PATH: 
   /Users/thanhtu/.cargo/bin:/Users/thanhtu/.npm-packages/bin:/Users/thanhtu/.cargo/bin:/Users/thanhtu/.rvm/gems/ruby-2.4.0/bin:/Users/thanhtu/.rvm/gems/ruby-2.4.0@global/bin:/Users/thanhtu/.rvm/rubies/ruby-2.4.0/bin:/opt/local/bin:/opt/local/sbin:/Users/thanhtu/perl5/perlbrew/bin:/Users/thanhtu/.yarn/bin:/Users/thanhtu/.nvm/versions/node/v9.2.0/bin:/Users/thanhtu/Library/Android/sdk/tools:/Users/thanhtu/Library/Android/sdk/platform-tools:/Applications/android-ndk:/Users/thanhtu/MyProjects/Nodejs/reactjs/Clingme/scala-2.9.1:/opt/local/bin:/opt/local/sbin:/Users/thanhtu/.rbenv/shims:/opt/local/bin:/opt/local/sbin:/Users/thanhtu/.rbenv/bin:/usr/local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/go/bin:/opt/X11/bin:/Library/Frameworks/Mono.framework/Versions/Current/Commands:/Users/thanhtu/MyProjects/Nodejs/reactjs/Clingme/play-2.0.4:/Users/thanhtu/go-workspace/bin:/usr/local/opt/go/libexec/bin:/Users/thanhtu/.rvm/bin:/Applications/spark-2.3.0-bin-hadoop2.7/bin:/Users/thanhtu/.rvm/bin
@@ -19,6 +19,7 @@ npm manifest:
     "version": "0.1.0",
     "scripts": {
       "start": "./start.sh"
+      "start-k8s": "./start.sh -a 192.168.99.100:30502"
     },
     "engines": {
       "node": ">=8.0.0",
@@ -34,16 +35,10 @@ Lockfile:
   No lockfile
 
 Trace: 
-  Error: Command failed.
-  Exit code: 126
-  Command: sh
-  Arguments: -c ./start.sh 1.0
-  Directory: /Users/thanhtu/MyProjects/Blockchain/chaincode
-  Output:
-  
-      at ProcessTermError.MessageError (/Users/thanhtu/.yarn/lib/cli.js:186:110)
-      at new ProcessTermError (/Users/thanhtu/.yarn/lib/cli.js:226:113)
-      at ChildProcess.<anonymous> (/Users/thanhtu/.yarn/lib/cli.js:30281:17)
-      at ChildProcess.emit (events.js:159:13)
-      at maybeClose (internal/child_process.js:943:16)
-      at Process.ChildProcess._handle.onexit (internal/child_process.js:220:5)
+  SyntaxError: /Users/thanhtu/MyProjects/Blockchain/chaincode/package.json: Unexpected string in JSON at position 100
+      at JSON.parse (<anonymous>)
+      at /Users/thanhtu/.yarn/lib/cli.js:1036:59
+      at Generator.next (<anonymous>)
+      at step (/Users/thanhtu/.yarn/lib/cli.js:98:30)
+      at /Users/thanhtu/.yarn/lib/cli.js:109:13
+      at <anonymous>

@@ -1,3 +1,2 @@
-version=${1:-"1.0"}
 cd $GOPATH/src/loyalty
-nodemon --exec "./startChaincode.sh $version" loyalty.go
+nodemon --exec "./startChaincode.sh -v $2 -a $1" loyalty.go

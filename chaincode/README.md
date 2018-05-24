@@ -22,7 +22,16 @@ CGO_LDFLAGS_ALLOW='-Wl,--no-as-needed' go test
 ```sh
 # cd ./chaincode/loyalty
 # nodemon --exec "./startChaincode.sh" loyalty.go
-yarn start 1.0
+yarn start
 # run at background
-yarn start 1.0 > /dev/null 2>&1 &
+yarn start > /dev/null 2>&1 &
+# run on kubernetes
+yarn start-k8s 1.0
+```
+
+## **Install on kubernetes**
+
+```sh
+cp chaincode/loyalty/ $share_folder/channel-artifacts/chaincode/loyalty
+# then later use k8s script to setup
 ```
