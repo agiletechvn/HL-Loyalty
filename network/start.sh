@@ -21,6 +21,6 @@ export FABRIC_START_TIMEOUT=5
 sleep ${FABRIC_START_TIMEOUT}
 
 # Create the channel
-docker exec cli peer channel create -o orderer.example.com:7050 -c mychannel -f /etc/hyperledger/configtx/channel.tx
+docker-compose exec cli peer channel create -o orderer.example.com:7050 -c mychannel -f /etc/hyperledger/configtx/channel.tx
 # Join peer0.org1.example.com to the channel.
-docker exec cli peer channel join -b mychannel.block
+docker-compose exec cli peer channel join -b mychannel.block
