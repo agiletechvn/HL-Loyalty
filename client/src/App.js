@@ -46,6 +46,12 @@ class App extends Component {
     }
   };
 
+  createCustomer = () => {
+    invoke("create_customer", this.customerId).then(data =>
+      this.afterInvoke(data)
+    );
+  };
+
   changeCustomerName = () => {
     const name = document.querySelector("#customerName").value.trim();
     invoke("update_customer_name", this.customerId, name).then(data =>
@@ -73,6 +79,25 @@ class App extends Component {
       <div className="App">
         <Header />
         <div id="body">
+          <div className="row no-gutter">
+            <div className="col">
+              <h2>Create new Customer</h2>
+              <input
+                className="form-control m-0"
+                placeholder="Ex: 123456789"
+                onChange={e => (this.customerId = e.target.value.trim())}
+              />
+            </div>
+            <button
+              className="btn btn-primary mb-2"
+              onClick={this.createCustomer}
+            >
+              Create
+            </button>
+          </div>
+
+          <hr />
+
           <button
             className="btn btn-primary mb-2"
             onClick={this.queryAllCustomers}
@@ -82,6 +107,7 @@ class App extends Component {
 
           <CustomerList list={customers} />
 
+          <hr />
           <div className="row no-gutter">
             <div className="col">
               <h2>Change customer record</h2>
