@@ -527,7 +527,7 @@ func (t *SimpleChaincode) invoke(stub shim.ChaincodeStubInterface, function stri
 //   Pings the peer to keep the connection alive
 //=================================================================================================================================
 func (t *SimpleChaincode) ping(stub shim.ChaincodeStubInterface) ([]byte, error) {
-	return []byte("pongABC"), nil
+	return []byte("pong"), nil
 }
 
 //=================================================================================================================================

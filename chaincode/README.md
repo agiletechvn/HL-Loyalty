@@ -23,4 +23,6 @@ CGO_LDFLAGS_ALLOW='-Wl,--no-as-needed' go test
 # cd ./chaincode/loyalty
 # nodemon --exec "./startChaincode.sh" loyalty.go
 yarn start 1.0
+# run at background
+yarn start 1.0 > /dev/null 2>&1 &
 ```
