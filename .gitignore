@@ -10,6 +10,6 @@ glide.lock
 /bin
 .DS_Store
 .project
-
+**/hfc-key-store
 # fabric sdk node modules
 node_modules

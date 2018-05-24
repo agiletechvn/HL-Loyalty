@@ -6,7 +6,17 @@
     "start": "./start.sh",
     "stop": "./stop.sh",
     "teardown": "./teardown.sh",
-    "reset": "yarn teardown && yarn generate"
+    "reset": "yarn teardown && yarn generate",
+    "installChaincode":
+      "docker-compose exec cli peer chaincode install -n mycc -p github.com/chaincode/loyalty -v",
+    "instantiateChaincode":
+      "docker-compose exec cli peer chaincode instantiate -C mychannel -o orderer.example.com:7050 -n mycc -c '{\"Args\":[]}' -v",
+    "upgradeChaincode":
+      "docker-compose exec cli peer chaincode upgrade -C mychannel -o orderer.example.com:7050 -n mycc -c '{\"Args\":[]}' -v",
+    "logCA": "docker-compose logs ca.example.com",
+    "logCLI": "docker-compose logs cli",
+    "logPeer": "docker-compose logs peer0.org1.example.com",
+    "logOrderer": "docker-compose logs orderer.example.com"
   },
   "engines": {
     "node": ">=8.0.0",

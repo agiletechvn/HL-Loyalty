@@ -1,30 +1,29 @@
-'use strict';
+"use strict";
 /*
 * SPDX-License-Identifier: Apache-2.0
 */
 /*
  * Chaincode Invoke
-
 This code is based on code written by the Hyperledger Fabric community.
   Original code can be found here: https://gerrit.hyperledger.org/r/#/c/14395/4/fabcar/enrollAdmin.js
  */
 
-var Fabric_Client = require('fabric-client');
-var Fabric_CA_Client = require('fabric-ca-client');
+var Fabric_Client = require("fabric-client");
+var Fabric_CA_Client = require("fabric-ca-client");
 
-var path = require('path');
-var util = require('util');
-var os = require('os');
+var path = require("path");
+var util = require("util");
+var os = require("os");
 
 //
 var fabric_client = new Fabric_Client();
 var fabric_ca_client = null;
 var admin_user = null;
 var member_user = null;
-var store_path = path.join(os.homedir(), '.hfc-key-store');
-console.log(' Store path:' + store_path);
-const username = process.argv[2] || 'admin';
-const password = process.argv[3] || 'adminpw';
+var store_path = path.join(__dirname, "hfc-key-store");
+console.log(" Store path:" + store_path);
+const username = process.argv[2] || "admin";
+const password = process.argv[3] || "adminpw";
 // create the key value store as defined in the fabric-client/config/default.json 'key-value-store' setting
 Fabric_Client.newDefaultKeyValueStore({
   path: store_path
@@ -44,9 +43,9 @@ Fabric_Client.newDefaultKeyValueStore({
     };
     // be sure to change the http to https when the CA is running TLS enabled
     fabric_ca_client = new Fabric_CA_Client(
-      'http://127.0.0.1:7054',
+      "http://localhost:7054",
       tlsOptions,
-      'ca.example.com',
+      "ca.example.com",
       crypto_suite
     );
 
@@ -55,7 +54,7 @@ Fabric_Client.newDefaultKeyValueStore({
   })
   .then(user_from_store => {
     if (user_from_store && user_from_store.isEnrolled()) {
-      console.log('Successfully loaded ' + username + ' from persistence');
+      console.log("Successfully loaded " + username + " from persistence");
       admin_user = user_from_store;
       return null;
     } else {
@@ -64,13 +63,13 @@ Fabric_Client.newDefaultKeyValueStore({
         .enroll({
           enrollmentID: username,
           enrollmentSecret: password,
-          attr_reqs: [{ name: 'role', optional: true }]
+          attr_reqs: [{ name: "role", optional: true }]
         })
         .then(enrollment => {
           console.log('Successfully enrolled admin user "' + username + '"');
           return fabric_client.createUser({
             username: username,
-            mspid: 'Org1MSP',
+            mspid: "Org1MSP",
             cryptoContent: {
               privateKeyPEM: enrollment.key.toBytes(),
               signedCertPEM: enrollment.certificate
@@ -83,22 +82,22 @@ Fabric_Client.newDefaultKeyValueStore({
         })
         .catch(err => {
           console.error(
-            'Failed to enroll and persist admin. Error: ' + err.stack
+            "Failed to enroll and persist admin. Error: " + err.stack
               ? err.stack
               : err
           );
-          throw new Error('Failed to enroll ' + username);
+          throw new Error("Failed to enroll " + username);
         });
     }
   })
   .then(() => {
     console.log(
-      'Assigned the ' +
+      "Assigned the " +
         username +
-        ' user to the fabric client ::' +
+        " user to the fabric client ::" +
         admin_user.toString()
     );
   })
   .catch(err => {
-    console.error('Failed to enroll ' + username + ': ' + err);
+    console.error("Failed to enroll " + username + ": " + err);
   });
