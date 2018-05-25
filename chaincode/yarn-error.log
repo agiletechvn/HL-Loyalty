@@ -19,7 +19,7 @@ npm manifest:
     "version": "0.1.0",
     "scripts": {
       "start": "./start.sh"
-      "start-k8s": "./start.sh -a 192.168.99.100:30502"
+      "start-k8s": "./start.sh -a localhost:30502"
     },
     "engines": {
       "node": ">=8.0.0",
