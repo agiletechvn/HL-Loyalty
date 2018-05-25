@@ -1,5 +1,5 @@
 chaincodeID=$(ps -ax | awk '$0~/\.\/loyalty/{print $1}')
-if [[ ! -z $chaincodeID ]];then  
+if [ ! -z "$chaincodeID" ];then  
   kill $chaincodeID
 fi
 
