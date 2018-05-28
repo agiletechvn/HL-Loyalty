@@ -6,11 +6,11 @@
   "scripts": {
     "start": "nodemon index.js",
     "start-k8s":
-      "CA_HOST=192.168.99.100:30500 PEER_HOST=192.168.99.100:30501 EVENT_HOST=192.168.99.100:30503 ORDERER_HOST=192.168.99.100:32000 nodemon index.js",
+      "CA_HOST=localhost:30500 PEER_HOST=localhost:30501 EVENT_HOST=localhost:30503 ORDERER_HOST=localhost:32000 nodemon index.js",
     "register": "node register.js",
-    "register-k8s": "CA_HOST=192.168.99.100:30500 node register.js",
+    "register-k8s": "CA_HOST=localhost:30500 node register.js",
     "enroll": "node enroll.js",
-    "enroll-k8s": "CA_HOST=192.168.99.100:30500 node enroll.js",
+    "enroll-k8s": "CA_HOST=localhost:30500 node enroll.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
