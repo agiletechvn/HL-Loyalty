@@ -1,7 +1,5 @@
 // base url from fabric explorer
-const API_BASE = `${window.location.protocol}//${
-  window.location.hostname
-}:8000`;
+const API_BASE = process.env.API_BASE || '';
 const DEFAULT_CHAINCODE = "mycc";
 const DEFAULT_USER = "user1";
 
