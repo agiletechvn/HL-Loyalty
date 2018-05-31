@@ -1,7 +1,7 @@
 // base url from fabric explorer
-const API_BASE = process.env.API_BASE || '';
-const DEFAULT_CHAINCODE = "mycc";
-const DEFAULT_USER = "user1";
+const API_BASE = process.env.API_BASE || 'http://localhost:8000';
+const DEFAULT_CHAINCODE = 'mycc';
+const DEFAULT_USER = 'user1';
 
 export const rejectErrors = res => {
   const { status } = res;
@@ -19,7 +19,7 @@ export const fetchJson = (url, options = {}, base = API_BASE) =>
     .then(res => res.json());
 
 export const getArguments = args =>
-  args ? args.map(value => "&arguments[]=" + value).join("") : "";
+  args ? args.map(value => '&arguments[]=' + value).join('') : '';
 
 export const query = (fcn, ...args) =>
   fetchJson(
