@@ -2,12 +2,17 @@
   "name": "loyalty-chaincode",
   "version": "0.1.0",
   "scripts": {
-    "start": "./start.sh localhost:7052",
-    "start-k8s": "./start.sh localhost:30502"
+    "start": "CGO_LDFLAGS_ALLOW=\"-I.*\" ./start.sh localhost:7052",
+    "start-k8s": "CGO_LDFLAGS_ALLOW=\"-I.*\" ./start.sh localhost:30502"
   },
   "engines": {
     "node": ">=8.0.0",
     "npm": ">=2.15.9"
   },
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "dependencies": {
+    "es2015": "0.0.0",
+    "global": "^4.3.2",
+    "nodemon": "^1.17.5"
+  }
 }
