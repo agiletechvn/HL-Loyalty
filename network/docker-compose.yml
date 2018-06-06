@@ -99,6 +99,8 @@ services:
       - COUCHDB_PASSWORD=
     ports:
       - 5984:5984
+    volumes:
+      - ./couchdb/data:/opt/couchdb/data
     networks:
       - basic
 
