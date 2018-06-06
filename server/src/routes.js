@@ -1,19 +1,22 @@
 //SPDX-License-Identifier: Apache-2.0
 // nodejs server setup
-const router = require("express").Router();
+const router = require('express').Router();
 // call the packages we need
 // const path = require("path");
 // const fs = require("fs");
 // const os = require("os");
 
-const controllerManager = require("./controller-mgr");
+const controllerManager = require('./controller-mgr');
+const { catchErrors } = require('./helpers/errorHandlers');
+const userEndpoint = require('./apis/userEndpoint');
+const { getAuthorize } = require('./middlewares/authMiddleware');
 const config = controllerManager.getConfig();
 
-router.get("/viewca", function(req, res) {
+router.get('/viewca', function(req, res) {
   const user = req.query.user || config.user;
   const controller = controllerManager.getInstance(
     user,
-    req.query.channel || "mychannel"
+    req.query.channel || 'mychannel'
   );
 
   // each method require different certificate of user
@@ -21,11 +24,11 @@ router.get("/viewca", function(req, res) {
   res.send(ret);
 });
 
-router.get("/query", function(req, res) {
+router.get('/query', function(req, res) {
   const user = req.query.user || config.user;
   const controller = controllerManager.getInstance(
     user,
-    req.query.channel || "mychannel"
+    req.query.channel || 'mychannel'
   );
   const request = {
     //targets : --- letting this default to the peers assigned to the channel
@@ -45,11 +48,11 @@ router.get("/query", function(req, res) {
     });
 });
 
-router.get("/invoke", function(req, res) {
+router.get('/invoke', function(req, res) {
   const user = req.query.user || config.user;
   const controller = controllerManager.getInstance(
     user,
-    req.query.channel || "mychannel"
+    req.query.channel || 'mychannel'
   );
   const request = {
     chaincodeId: req.query.chaincode,
@@ -67,5 +70,11 @@ router.get("/invoke", function(req, res) {
       res.status(500).send(err);
     });
 });
+
+router.use(getAuthorize);
+
+// Protected routes
+router.get('/api/users', catchErrors(userEndpoint.getUsers));
+router.get('/api/get-user-current', catchErrors(userEndpoint.getUserCurrent));
 
 module.exports = router;
