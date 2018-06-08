@@ -2,7 +2,7 @@
 
 # dependencies
 **/node_modules
-
+**/yarn-error.log
 # testing
 **/coverage
 
@@ -16,7 +16,7 @@
 .env.test.local
 .env.production.local
 
-vendor
+
 glide.lock
 # Emacs backup files
 *~
