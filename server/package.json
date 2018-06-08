@@ -5,8 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "nodemon index.js",
-    "start-k8s":
-      "CA_HOST=localhost:30500 PEER_HOST=localhost:30501 EVENT_HOST=localhost:30503 ORDERER_HOST=localhost:32000 nodemon index.js",
+    "start-k8s": "CA_HOST=localhost:30500 PEER_HOST=localhost:30501 EVENT_HOST=localhost:30503 ORDERER_HOST=localhost:32000 nodemon index.js",
     "register": "node register.js",
     "register-k8s": "CA_HOST=localhost:30500 node register.js",
     "enroll": "node enroll.js",
@@ -14,15 +13,16 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "commander": "^2.11.0",
     "angular": "^1.4.3",
     "body-parser": "latest",
+    "commander": "^2.11.0",
     "cors": "^2.8.4",
     "ejs": "latest",
     "express": "latest",
     "fabric-ca-client": "^1.0.5",
     "fabric-client": "^1.0.5",
     "grpc": "^1.6.0",
+    "jsonwebtoken": "^8.2.2",
     "x509": "^0.3.3"
   },
   "license": "Apache-2.0",
